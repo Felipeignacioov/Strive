@@ -960,7 +960,7 @@
           <div class="greeting-sub">¿Qué vas a entrenar hoy?</div>
         </div>
         <div class="header-actions">
-          <div class="avatar">F</div>
+          <div class="avatar" id="homeAvatarInitial">F</div>
         </div>
       </div>
 
@@ -1149,9 +1149,9 @@
       <div style="height:24px"></div>
 
       <div class="profile-header">
-        <div class="avatar-lg">F</div>
-        <div class="profile-name">Felipe</div>
-        <div class="goal-pill"><i data-feather="target"></i><span>Ganar fuerza</span></div>
+        <div class="avatar-lg" id="profileAvatarInitial">F</div>
+        <div class="profile-name" id="profileNameDisplay">Felipe</div>
+        <div class="goal-pill" id="profileGoalPill"><i data-feather="target"></i><span>Ganar fuerza</span></div>
         <div class="member-since">Miembro desde ene. 2025</div>
       </div>
 
@@ -1161,7 +1161,7 @@
         <div class="summary-row">
           <div class="stat" style="align-items:center"><span class="v">18</span><span class="l">Entrenamientos</span></div>
           <div class="v-divider"></div>
-          <div class="stat" style="align-items:center"><span class="v">Interm.</span><span class="l">Nivel</span></div>
+          <div class="stat" style="align-items:center"><span class="v" id="profileLevelValue">Interm.</span><span class="l">Nivel</span></div>
           <div class="v-divider"></div>
           <div class="stat" style="align-items:center"><span class="v">6</span><span class="l">Racha</span></div>
         </div>
@@ -1170,8 +1170,8 @@
       <div style="height:28px"></div>
 
       <div class="card" style="padding:0">
-        <div class="settings-row"><div class="settings-icon"><i data-feather="user"></i></div><span class="settings-label">Información personal</span><i data-feather="chevron-right" class="chev"></i></div>
-        <div class="settings-row"><div class="settings-icon"><i data-feather="target"></i></div><span class="settings-label">Objetivo y nivel</span><i data-feather="chevron-right" class="chev"></i></div>
+        <div class="settings-row" onclick="openPersonalInfoScreen()"><div class="settings-icon"><i data-feather="user"></i></div><span class="settings-label">Información personal</span><i data-feather="chevron-right" class="chev"></i></div>
+        <div class="settings-row" onclick="openGoalLevelScreen()"><div class="settings-icon"><i data-feather="target"></i></div><span class="settings-label">Objetivo y nivel</span><i data-feather="chevron-right" class="chev"></i></div>
         <div class="settings-row"><div class="settings-icon"><i data-feather="sliders"></i></div><span class="settings-label">Unidades y preferencias</span><i data-feather="chevron-right" class="chev"></i></div>
         <div class="settings-row"><div class="settings-icon"><i data-feather="bell"></i></div><span class="settings-label">Notificaciones</span><i data-feather="chevron-right" class="chev"></i></div>
         <div class="settings-row"><div class="settings-icon"><i data-feather="help-circle"></i></div><span class="settings-label">Ayuda y soporte</span><i data-feather="chevron-right" class="chev"></i></div>
@@ -1484,6 +1484,80 @@
     <div class="flow-body" id="workoutDetailBody" style="padding-bottom:24px;"></div>
   </div>
 
+  <!-- ============ PERFIL: INFORMACIÓN PERSONAL ============ -->
+  <!-- Single source of truth for the user's identity data. Saving here
+       re-renders every place the name/avatar initial already appears
+       (Home greeting, Home avatar, Perfil avatar and name) instead of
+       leaving those as separate hardcoded strings. -->
+  <div class="flow-overlay" id="personalInfoScreen">
+    <div class="flow-header">
+      <div>
+        <div class="flow-title">Información personal</div>
+        <div class="flow-subtitle">Tus datos de cuenta y medidas.</div>
+      </div>
+      <button class="close-btn" onclick="closePersonalInfoScreen()"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="flow-body">
+      <div class="form-label">Nombre</div>
+      <input type="text" class="form-input" id="piNameInput" placeholder="Tu nombre" />
+
+      <div class="form-label">Email</div>
+      <input type="email" class="form-input" id="piEmailInput" placeholder="tu@email.com" />
+
+      <div class="form-label">Fecha de nacimiento</div>
+      <input type="date" class="form-input" id="piBirthDateInput" />
+
+      <div class="form-row">
+        <div style="flex:1">
+          <div class="form-label">Altura (cm)</div>
+          <input type="number" inputmode="numeric" min="0" class="form-input" id="piHeightInput" placeholder="178" />
+        </div>
+        <div style="flex:1">
+          <div class="form-label">Peso corporal (kg)</div>
+          <input type="number" inputmode="decimal" step="0.1" min="0" class="form-input" id="piWeightInput" placeholder="80" />
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-footer">
+      <button class="flow-primary-btn" id="savePersonalInfoBtn" onclick="savePersonalInfo()">
+        Guardar cambios <i data-feather="check"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ PERFIL: OBJETIVO Y NIVEL ============ -->
+  <!-- Reuses the exact same goal-option component as "Crear rutina con
+       Strive" — one visual pattern for choosing from a list of options.
+       Writes into the same `userPreferences` object that routine
+       generation already reads from (see GOAL_ROUTINE_TEMPLATES), so
+       there's one place this data lives, not a second copy. -->
+  <div class="flow-overlay" id="goalLevelScreen">
+    <div class="flow-header">
+      <div>
+        <div class="flow-title">Objetivo y nivel</div>
+        <div class="flow-subtitle">Ayuda a Strive a generar rutinas más ajustadas a ti.</div>
+      </div>
+      <button class="close-btn" onclick="closeGoalLevelScreen()"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="flow-body">
+      <div class="muscle-section-title" style="margin-bottom:12px;">OBJETIVO</div>
+      <div id="goalLevelGoalList"></div>
+
+      <div style="height:10px"></div>
+      <div class="muscle-section-title" style="margin-bottom:12px;">NIVEL</div>
+      <div id="goalLevelLevelList"></div>
+    </div>
+
+    <div class="flow-footer">
+      <button class="flow-primary-btn" id="saveGoalLevelBtn" onclick="saveGoalLevel()">
+        Guardar cambios <i data-feather="check"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- ============ SUCCESS TOAST ============ -->
   <div class="toast" id="successToast">
     <div class="toast-icon"><i data-feather="check"></i></div>
@@ -1493,6 +1567,31 @@
 </div>
 
 <script>
+  // ================================================================
+  // PERFIL — single source of truth for identity data. Every place the
+  // user's name/initial appears (Home greeting, Home avatar, Perfil avatar
+  // and name) reads from here instead of holding its own copy.
+  // ================================================================
+  let userProfile = {
+    name: 'Felipe',
+    email: 'felipe@correo.com',
+    birthDate: '1998-04-12',
+    heightCm: 178,
+    weightKg: 82,
+  };
+
+  function renderProfileIdentity(){
+    const name = (userProfile.name || '').trim() || 'Usuario';
+    const initial = name.charAt(0).toUpperCase();
+    const h = new Date().getHours();
+    const greeting = h < 12 ? 'Buenos días' : (h < 19 ? 'Buenas tardes' : 'Buenas noches');
+
+    document.getElementById('greetingName').textContent = greeting + ', ' + name;
+    document.getElementById('homeAvatarInitial').textContent = initial;
+    document.getElementById('profileAvatarInitial').textContent = initial;
+    document.getElementById('profileNameDisplay').textContent = name;
+  }
+
   // ---------- Tab switching ----------
   function showTab(name){
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -1501,13 +1600,6 @@
     document.querySelector('.tab-btn[data-tab="' + name + '"]').classList.add('active');
     document.getElementById('tabContent').scrollTop = 0;
   }
-
-  // Greeting based on time of day
-  (function(){
-    const h = new Date().getHours();
-    const g = h < 12 ? 'Buenos días' : (h < 19 ? 'Buenas tardes' : 'Buenas noches');
-    document.getElementById('greetingName').textContent = g + ', Felipe';
-  })();
 
   // ---------- Workout mode state ----------
   const REST_SECONDS = 90;
@@ -2477,7 +2569,7 @@
 
   function openGoalPicker(){
     closeCreateSheet();
-    selectedGoal = null;
+    selectedGoal = userPreferences.goal || null;
     renderGoalPicker();
     document.getElementById('goalPickerScreen').classList.add('open');
   }
@@ -2503,13 +2595,15 @@
     renderGoalPicker();
   }
 
-  // User-facing personalization today is just the goal. The object and the
-  // function signature below are shaped so level, days available, session
+  // User-facing personalization today is goal + level. The object and the
+  // function signature below are shaped so days available, session
   // duration, equipment, experience and priority muscle groups can be added
   // later as extra inputs without reworking how a routine gets built.
+  // Starts with the same goal/level the profile already displayed, now
+  // formalized as real data instead of two hardcoded strings.
   const userPreferences = {
-    goal: null,
-    level: null,
+    goal: 'strength',
+    level: 'intermediate',
     daysAvailable: null,
     sessionDuration: null,
     equipment: null,
@@ -2989,6 +3083,128 @@
     document.getElementById(id).addEventListener('input', updateAddRecordFooter);
   });
 
+  // ================================================================
+  // PERFIL: Información personal — reads from and writes to the same
+  // `userProfile` object renderProfileIdentity() reads from, so nothing
+  // is duplicated between this screen and where the name/avatar show up.
+  // ================================================================
+  function openPersonalInfoScreen(){
+    document.getElementById('piNameInput').value = userProfile.name || '';
+    document.getElementById('piEmailInput').value = userProfile.email || '';
+    document.getElementById('piBirthDateInput').value = userProfile.birthDate || '';
+    document.getElementById('piHeightInput').value = userProfile.heightCm != null ? userProfile.heightCm : '';
+    document.getElementById('piWeightInput').value = userProfile.weightKg != null ? userProfile.weightKg : '';
+    document.getElementById('personalInfoScreen').classList.add('open');
+  }
+
+  function closePersonalInfoScreen(){
+    document.getElementById('personalInfoScreen').classList.remove('open');
+  }
+
+  function savePersonalInfo(){
+    const typedName = document.getElementById('piNameInput').value.trim();
+    const typedEmail = document.getElementById('piEmailInput').value.trim();
+    const typedBirthDate = document.getElementById('piBirthDateInput').value;
+    const typedHeight = parseFloat(document.getElementById('piHeightInput').value);
+    const typedWeight = parseFloat(document.getElementById('piWeightInput').value);
+
+    // Name is the one field everything else on screen depends on visually —
+    // never let it be blanked out. Everything else is optional: keep the
+    // previous value if what was typed isn't usable.
+    userProfile.name = typedName || userProfile.name;
+    userProfile.email = typedEmail;
+    userProfile.birthDate = typedBirthDate || userProfile.birthDate;
+    userProfile.heightCm = (typedHeight > 0) ? typedHeight : userProfile.heightCm;
+    userProfile.weightKg = (typedWeight > 0) ? typedWeight : userProfile.weightKg;
+
+    renderProfileIdentity();
+    closePersonalInfoScreen();
+    showSuccessToast('Perfil actualizado');
+  }
+
+  // ================================================================
+  // PERFIL: Objetivo y nivel — edits the same `userPreferences.goal` /
+  // `.level` that "Crear rutina con Strive" already reads when generating
+  // a routine. Works on draft variables so cancelling never mutates
+  // userPreferences, then writes back and re-renders the profile pill +
+  // "Nivel" stat on save.
+  // ================================================================
+  const LEVELS = [
+    { key:'beginner',     label:'Principiante', icon:'sunrise' },
+    { key:'intermediate', label:'Intermedio',   icon:'activity' },
+    { key:'advanced',     label:'Avanzado',     icon:'award' },
+  ];
+
+  let goalLevelDraftGoal = null;
+  let goalLevelDraftLevel = null;
+
+  function openGoalLevelScreen(){
+    goalLevelDraftGoal = userPreferences.goal;
+    goalLevelDraftLevel = userPreferences.level;
+    renderGoalLevelScreen();
+    document.getElementById('goalLevelScreen').classList.add('open');
+  }
+
+  function closeGoalLevelScreen(){
+    document.getElementById('goalLevelScreen').classList.remove('open');
+  }
+
+  function renderGoalLevelScreen(){
+    document.getElementById('goalLevelGoalList').innerHTML = GOALS.map(g => (
+      '<div class="goal-option' + (goalLevelDraftGoal === g.key ? ' selected' : '') + '" onclick="selectGoalLevelGoal(\'' + g.key + '\')">' +
+        '<div class="goal-icon"><i data-feather="' + g.icon + '"></i></div>' +
+        '<div class="goal-label">' + g.label + '</div>' +
+        '<div class="goal-radio"></div>' +
+      '</div>'
+    )).join('');
+
+    document.getElementById('goalLevelLevelList').innerHTML = LEVELS.map(l => (
+      '<div class="goal-option' + (goalLevelDraftLevel === l.key ? ' selected' : '') + '" onclick="selectGoalLevelLevel(\'' + l.key + '\')">' +
+        '<div class="goal-icon"><i data-feather="' + l.icon + '"></i></div>' +
+        '<div class="goal-label">' + l.label + '</div>' +
+        '<div class="goal-radio"></div>' +
+      '</div>'
+    )).join('');
+
+    document.getElementById('saveGoalLevelBtn').disabled = !(goalLevelDraftGoal && goalLevelDraftLevel);
+    feather.replace();
+  }
+
+  function selectGoalLevelGoal(key){ goalLevelDraftGoal = key; renderGoalLevelScreen(); }
+  function selectGoalLevelLevel(key){ goalLevelDraftLevel = key; renderGoalLevelScreen(); }
+
+  function saveGoalLevel(){
+    if(!goalLevelDraftGoal || !goalLevelDraftLevel) return;
+    userPreferences.goal = goalLevelDraftGoal;
+    userPreferences.level = goalLevelDraftLevel;
+    renderProfileGoalLevel();
+    closeGoalLevelScreen();
+    showSuccessToast('Objetivo y nivel actualizados');
+  }
+
+  function levelShortLabel(key){
+    if(key === 'beginner') return 'Inicial';
+    if(key === 'advanced') return 'Avanz.';
+    return 'Interm.';
+  }
+
+  // Paints the profile's goal pill + "Nivel" stat from userPreferences —
+  // the same source GOAL_ROUTINE_TEMPLATES uses when Strive builds a routine.
+  // Rebuilds the pill's inner markup (icon + label together) rather than
+  // mutating an already-rendered feather <svg> in place, since feather
+  // replaces <i data-feather> with a real <svg> on first render — the same
+  // pattern already used everywhere else icons need to change dynamically.
+  function renderProfileGoalLevel(){
+    const goal = GOALS.find(g => g.key === userPreferences.goal);
+    const level = LEVELS.find(l => l.key === userPreferences.level);
+    document.getElementById('profileGoalPill').innerHTML =
+      '<i data-feather="' + (goal ? goal.icon : 'target') + '"></i><span>' + (goal ? goal.label : 'Sin definir') + '</span>';
+    document.getElementById('profileLevelValue').textContent = level ? levelShortLabel(level.key) : '—';
+    feather.replace();
+  }
+
+  renderProfileIdentity();
+  renderProfileGoalLevel();
   renderRoutinesList();
   renderPersonalRecords();
   renderTrainingCalendar();
