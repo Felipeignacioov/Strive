@@ -1906,62 +1906,62 @@
   // concepts that Feather already renders clearly (heart, lightning bolt,
   // bullseye) reuse Feather's exact paths so the whole set stays one family.
   const ROUTINE_ICON_SHAPES = {
-    // Push: bench press, side view — bar with plates overhead, one arm
-    // reaching up, body lying flat with a knee bent off the bench. This
-    // reads as PUSH *and* chest specifically, unlike a standing press.
+    // Push: barbell bench press, side view — bar with plates overhead, arms
+    // reaching up to grip it, torso resting on a simple two-legged bench.
     push:
-      '<line x1="4" y1="5" x2="20" y2="5"/>' +
-      '<rect x="1" y="2" width="3" height="6" rx="1"/><rect x="20" y="2" width="3" height="6" rx="1"/>' +
-      '<line x1="12" y1="13" x2="8" y2="5"/><line x1="12" y1="13" x2="16" y2="5"/>' +
-      '<circle cx="18" cy="13" r="2"/>' +
-      '<line x1="12" y1="13" x2="7" y2="15"/>' +
-      '<line x1="7" y1="15" x2="7" y2="19"/><line x1="7" y1="19" x2="4" y2="19"/>' +
-      '<line x1="10" y1="16" x2="10" y2="20"/><line x1="16" y1="15" x2="16" y2="20"/>',
-    // Pull: hanging from a bar, elbows bent and flared out, mid pull-up —
-    // an active pulling motion, not just "person on a bar".
+      '<line x1="5" y1="5" x2="19" y2="5"/>' +
+      '<rect x="2" y="2" width="3" height="6" rx="1"/><rect x="19" y="2" width="3" height="6" rx="1"/>' +
+      '<circle cx="12" cy="12" r="2.3"/>' +
+      '<line x1="12" y1="9.7" x2="7.5" y2="5"/><line x1="12" y1="9.7" x2="16.5" y2="5"/>' +
+      '<line x1="12" y1="14.3" x2="12" y2="17"/>' +
+      '<line x1="8.5" y1="17" x2="15.5" y2="17"/>' +
+      '<line x1="9.5" y1="17" x2="9.5" y2="20.5"/><line x1="14.5" y1="17" x2="14.5" y2="20.5"/>',
+    // Pull: hanging from a bar with a wide, rounded grip — the "sibling"
+    // shape to Bodyweight below, differentiated only by the legs at the
+    // bottom (two separate legs here vs. one curled leg for Bodyweight).
     pull:
-      '<line x1="6" y1="3" x2="18" y2="3"/>' +
-      '<line x1="8" y1="3" x2="6" y2="8"/><line x1="6" y1="8" x2="10" y2="11"/>' +
-      '<line x1="16" y1="3" x2="18" y2="8"/><line x1="18" y1="8" x2="14" y2="11"/>' +
-      '<circle cx="12" cy="10" r="2"/>' +
-      '<line x1="12" y1="12" x2="12" y2="17"/>' +
-      '<line x1="12" y1="17" x2="10" y2="21"/><line x1="12" y1="17" x2="14" y2="21"/>',
-    // Legs: one leg, thigh straight, calf drawn with a visible muscle curve,
-    // ending in a foot — unmistakably a leg, not an arrow.
+      '<line x1="6" y1="4" x2="18" y2="4"/>' +
+      '<line x1="6" y1="3" x2="6" y2="5.3"/><line x1="18" y1="3" x2="18" y2="5.3"/>' +
+      '<path d="M7 4.3 C7 8 9 9.7 10.3 10.5"/>' +
+      '<path d="M17 4.3 C17 8 15 9.7 13.7 10.5"/>' +
+      '<circle cx="12" cy="12.5" r="2.2"/>' +
+      '<line x1="11.2" y1="14.5" x2="10.3" y2="20.8"/>' +
+      '<line x1="12.8" y1="14.5" x2="13.7" y2="20.8"/>',
+    // Legs: a single closed leg silhouette — thigh, knee bend, calf bulge,
+    // flat foot — reads as a leg at a glance instead of an abstract curve.
     legs:
-      '<path d="M10 3 L9 11 Q13 15 10 19 L15 19"/>',
+      '<path d="M13.5 2.7 C15.2 3.3 16.5 3.9 17.2 4.5 C16.4 7.8 15.4 10.3 15 12.8 ' +
+      'C14.8 14.8 14.9 17 15.1 18.7 L10.2 19.1 C9.8 15.9 9.4 13.2 9.9 11 C10.4 8.6 11.7 5.6 13.5 2.7 Z"/>',
     dumbbell:
       '<line x1="7" y1="12" x2="17" y2="12"/>' +
       '<rect x="3" y="8" width="4" height="8" rx="1.5"/>' +
       '<rect x="17" y="8" width="4" height="8" rx="1.5"/>',
-    // Barbell: long bar, plates spanning nearly the full height at both
-    // ends — unmistakably bigger and longer than the compact dumbbell.
+    // Barbell: thin long bar with end plates and knurled-grip tick marks —
+    // reads as clearly longer/thinner than the dumbbell, not just bigger.
     barbell:
       '<line x1="4" y1="12" x2="20" y2="12"/>' +
-      '<rect x="1" y="4" width="3" height="16" rx="1"/>' +
-      '<rect x="20" y="4" width="3" height="16" rx="1"/>' +
-      '<rect x="5" y="7" width="2" height="10" rx="1"/>' +
-      '<rect x="17" y="7" width="2" height="10" rx="1"/>',
+      '<rect x="1.5" y="9" width="2.5" height="6" rx="1"/><rect x="20" y="9" width="2.5" height="6" rx="1"/>' +
+      '<line x1="7" y1="9" x2="7" y2="15"/><line x1="9" y1="9" x2="9" y2="15"/>' +
+      '<line x1="15" y1="9" x2="15" y2="15"/><line x1="17" y1="9" x2="17" y2="15"/>',
     kettlebell:
       '<path d="M9 7 C9 4.5 10.5 3 12 3 C13.5 3 15 4.5 15 7"/>' +
       '<line x1="9" y1="7" x2="9" y2="9"/><line x1="15" y1="7" x2="15" y2="9"/>' +
       '<circle cx="12" cy="15" r="6"/>',
-    // Bodyweight: a dead hang — arms straight from the bar, body long and
-    // relaxed. Same "hanging from a bar" family as Pull, but passive/straight
-    // -armed rather than mid-pull, so the two stay clearly different.
+    // Bodyweight: the same hanging grip as Pull, but the body ends in one
+    // curled/relaxed leg instead of two — a dead hang, not an active pull.
     bodyweight:
-      '<line x1="6" y1="3" x2="18" y2="3"/>' +
-      '<line x1="9" y1="3" x2="10" y2="9"/><line x1="15" y1="3" x2="14" y2="9"/>' +
-      '<circle cx="12" cy="8" r="2"/>' +
-      '<line x1="12" y1="10" x2="12" y2="16"/>' +
-      '<line x1="12" y1="16" x2="10" y2="21"/><line x1="12" y1="16" x2="13" y2="21"/>',
-    // Strength: flexed arm — fist, forearm, one full bicep bulge. No shield,
-    // no star, no bolt.
+      '<line x1="6" y1="4" x2="18" y2="4"/>' +
+      '<line x1="6" y1="3" x2="6" y2="5.3"/><line x1="18" y1="3" x2="18" y2="5.3"/>' +
+      '<path d="M7 4.3 C7 8 9 9.7 10.3 10.5"/>' +
+      '<path d="M17 4.3 C17 8 15 9.7 13.7 10.5"/>' +
+      '<circle cx="12" cy="12.5" r="2.2"/>' +
+      '<path d="M12 14.7 C12 17 12.5 18 12.3 19.5 C12.2 20.3 11.4 20.8 11.4 20.8"/>',
+    // Strength: flexed bicep — fist, muscle bulge curving down, forearm
+    // reaching out toward the viewer. No shield, no star, no bolt.
     strength:
-      '<circle cx="15" cy="6" r="2"/>' +
-      '<line x1="13.5" y1="7.5" x2="10" y2="10"/>' +
-      '<path d="M10 10 Q4 12 7 17"/>' +
-      '<line x1="7" y1="17" x2="8" y2="20"/>',
+      '<circle cx="15.7" cy="5" r="1.7"/>' +
+      '<path d="M14.3 6.3 L12 9.3 A5.3 5.3 0 0 0 12.7 16.8 L14.3 18.7"/>' +
+      '<path d="M9.3 12.8 C12 12.3 14 13.6 17 12.8"/>',
     cardio:
       '<polyline points="2,12 7,12 9,6 13,18 15,12 22,12"/>',
     heart:
