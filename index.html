@@ -657,12 +657,15 @@
     background:var(--surface-high);color:var(--text-tertiary);
     box-shadow:none;cursor:not-allowed;
   }
-  /* Brief "set completed" confirmation state — reuses the same success
-     green already used elsewhere (set checkmarks, toasts), just for ~400ms
-     before the screen moves on to rest. Overrides the :disabled look above
-     while active so it reads as a confirmation, not a blocked button. */
+  /* Brief "set completed" confirmation state — stays on-brand (Strive red),
+     just for ~350ms before the screen advances. Overrides the grey
+     :disabled look above while active, so it reads as a confirmation, not
+     a blocked button. */
   .primary-btn.primary-btn-confirm:disabled{
-    background:var(--success);color:#0B0B0F;box-shadow:none;
+    background:linear-gradient(135deg,var(--accent-bright),var(--accent));
+    color:#fff;
+    box-shadow:0 10px 20px -5px rgba(185,28,53,0.45);
+    cursor:default;
   }
   .wk-check-pop{
     display:inline-flex;align-items:center;justify-content:center;
@@ -1985,9 +1988,10 @@
   }
 
   // Brief, self-contained micro-feedback: confirm the set was registered
-  // before the screen moves on to rest. No intermediate screen — just the
-  // primary button itself, for ~400ms, then the existing rest flow runs
-  // exactly as it did before.
+  // before the screen advances. No intermediate screen — just the primary
+  // button itself, for ~350ms, then the correct next step runs: rest only
+  // if another set of this same exercise remains; otherwise the exercise
+  // (or the whole workout) advances directly, with no rest in between.
   function showSetCompletedFeedback(){
     const btn = document.getElementById('wkPrimaryBtn');
     btn.disabled = true;
@@ -1996,9 +2000,29 @@
     feather.replace();
     setTimeout(() => {
       btn.classList.remove('primary-btn-confirm');
+      advanceAfterSetCompleted();
+    }, 360);
+  }
+
+  // Decides what happens right after the "Serie completada" confirmation.
+  // Rest only makes sense when there's another set of the SAME exercise
+  // still ahead — an exercise or a whole workout ending never needs it.
+  function advanceAfterSetCompleted(){
+    const ex = workout[exIndex];
+    if(activeSetIndex(ex) !== -1){
+      // another set of this exercise is still pending — rest as usual
       startRest();
       renderWorkout();
-    }, 420);
+      return;
+    }
+    // this exercise is fully done — skip rest entirely
+    if(exIndex === workout.length - 1){
+      const summary = logCompletedWorkout();
+      showWorkoutSummary(summary);
+      return;
+    }
+    exIndex++;
+    renderWorkout();
   }
 
   // ---------- Rest component: independent state, driven for real ----------
