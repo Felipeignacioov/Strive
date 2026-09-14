@@ -618,7 +618,7 @@
   .rest-btn{
     flex:1;height:42px;border-radius:13px;border:none;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:5px;
-    font-family:var(--font-body);font-weight:600;font-size:13px;
+    font-family:var(--font-body);font-weight:600;font-size:13px;white-space:nowrap;
   }
   .rest-btn svg{width:13px;height:13px;}
   .rest-btn-secondary{background:var(--surface-high);color:var(--text-primary);}
@@ -642,6 +642,10 @@
     box-shadow:0 10px 20px -5px rgba(185,28,53,0.45);
   }
   .primary-btn svg{width:17px;height:17px;}
+  .primary-btn:disabled{
+    background:var(--surface-high);color:var(--text-tertiary);
+    box-shadow:none;cursor:not-allowed;
+  }
 
   /* ================================================================
      Create-routine flow: action sheet + exercise picker + Strive goal picker
@@ -1763,10 +1767,18 @@
     // primary button
     const btn = document.getElementById('wkPrimaryBtn');
     if(allDone){
+      btn.disabled = false;
       btn.innerHTML = (isLast ? 'Finalizar entrenamiento' : 'Siguiente ejercicio') + ' <i data-feather="' + (isLast ? 'check' : 'arrow-right') + '"></i>';
     } else if(activeStatus === 'in_progress'){
+      btn.disabled = false;
       btn.innerHTML = 'Completar serie <i data-feather="check"></i>';
+    } else if(restRemaining !== null){
+      // Resting: the next set is technically "not_started", but starting it
+      // is blocked until rest ends — this is the only new behavior here.
+      btn.disabled = true;
+      btn.innerHTML = 'Descansando… <i data-feather="clock"></i>';
     } else {
+      btn.disabled = false;
       btn.innerHTML = 'Iniciar serie <i data-feather="play"></i>';
     }
 
@@ -1906,6 +1918,7 @@
     restRemaining = null;
     restPaused = false;
     document.getElementById('restBanner').style.display = 'none';
+    renderWorkout();
   }
 
   function formatRestTime(seconds){
@@ -1914,9 +1927,10 @@
     return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   }
 
-  // Re-renders the countdown, the "Pausado" status line, and swaps the
-  // control row between the running set (Pausar / +30s / Saltar) and the
-  // paused set (Reanudar only) — matching the two states of the component.
+  // Re-renders the countdown, the "Pausado" status line, and the control
+  // row. The row always keeps its 3 slots (toggle / +30s / Saltar) — only
+  // the first button's label and action swap between Pausar and Reanudar,
+  // so pausing never resizes or reshapes the component.
   function renderRestBanner(){
     if(restRemaining === null) return;
     document.getElementById('restTime').textContent = formatRestTime(restRemaining);
@@ -1924,16 +1938,14 @@
     const statusEl = document.getElementById('restStatus');
     statusEl.style.display = restPaused ? 'block' : 'none';
 
-    const controls = document.getElementById('restControls');
-    if(restPaused){
-      controls.innerHTML =
-        '<button class="rest-btn rest-btn-primary" onclick="resumeRest()"><i data-feather="play"></i> Reanudar</button>';
-    } else {
-      controls.innerHTML =
-        '<button class="rest-btn rest-btn-secondary" onclick="pauseRest()"><i data-feather="pause"></i> Pausar</button>' +
-        '<button class="rest-btn rest-btn-ghost" onclick="addRestTime(30)">+30s</button>' +
-        '<button class="rest-btn rest-btn-ghost" onclick="skipRest()">Saltar</button>';
-    }
+    const toggleBtn = restPaused
+      ? '<button class="rest-btn rest-btn-primary" onclick="resumeRest()"><i data-feather="play"></i> Reanudar</button>'
+      : '<button class="rest-btn rest-btn-secondary" onclick="pauseRest()"><i data-feather="pause"></i> Pausar</button>';
+
+    document.getElementById('restControls').innerHTML =
+      toggleBtn +
+      '<button class="rest-btn rest-btn-ghost" onclick="addRestTime(30)">+30s</button>' +
+      '<button class="rest-btn rest-btn-ghost" onclick="skipRest()">Saltar</button>';
     feather.replace();
   }
 
