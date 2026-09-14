@@ -1338,6 +1338,14 @@
 
     <div class="flow-footer">
       <input type="text" class="routine-name-input" id="routineNameInput" placeholder="Nombre de tu rutina" />
+
+      <button class="icon-picker-row" onclick="toggleCreateIconPicker()">
+        <div class="routine-icon" id="createIconPreview"><i data-feather="target"></i></div>
+        <span class="icon-picker-label">Icono de tu rutina</span>
+        <i data-feather="chevron-right" class="chev"></i>
+      </button>
+      <div id="createIconPickerGrid" class="icon-picker-grid" style="display:none;"></div>
+
       <div class="flow-footer-meta"><b id="selectedCountLabel">0</b> ejercicios seleccionados</div>
       <button class="flow-primary-btn" id="createRoutineBtn" onclick="saveCustomRoutine()" disabled>
         Crear rutina <i data-feather="arrow-right"></i>
@@ -2158,39 +2166,58 @@
   }
 
   // ---------- Exercise catalog, grouped by muscle group ----------
-  // Three exercises per group today. Adding a fourth later is just another
-  // object in the array — the picker screen re-renders from this list, so
-  // nothing about the layout needs to change.
+  // Six exercises per group. Adding more later is just another object in
+  // the array — the picker screen re-renders from this list, so nothing
+  // about the layout needs to change. Existing ids (b1, c1, l1...) are
+  // untouched so GOAL_ROUTINE_TEMPLATES references below keep working.
   const MUSCLE_GROUPS = [
     { key:'espalda', label:'ESPALDA', icon:'chevrons-up', exercises:[
       { id:'b1', name:'Dominadas' },
       { id:'b2', name:'Remo con barra' },
       { id:'b3', name:'Jalón al pecho' },
+      { id:'b4', name:'Remo con mancuerna a una mano' },
+      { id:'b5', name:'Peso muerto' },
+      { id:'b6', name:'Remo en polea baja' },
     ]},
     { key:'pecho', label:'PECHO', icon:'shield', exercises:[
       { id:'c1', name:'Press banca' },
       { id:'c2', name:'Press inclinado mancuerna' },
       { id:'c3', name:'Aperturas con mancuerna' },
+      { id:'c4', name:'Press declinado' },
+      { id:'c5', name:'Cruces en polea' },
+      { id:'c6', name:'Fondos en paralelas' },
     ]},
     { key:'piernas', label:'PIERNAS', icon:'trending-up', exercises:[
       { id:'l1', name:'Sentadilla' },
       { id:'l2', name:'Peso muerto rumano' },
       { id:'l3', name:'Prensa' },
+      { id:'l4', name:'Zancadas' },
+      { id:'l5', name:'Curl femoral' },
+      { id:'l6', name:'Extensión de cuádriceps' },
     ]},
     { key:'hombros', label:'HOMBROS', icon:'triangle', exercises:[
       { id:'s1', name:'Press militar' },
       { id:'s2', name:'Elevaciones laterales' },
       { id:'s3', name:'Face pull' },
+      { id:'s4', name:'Elevaciones frontales' },
+      { id:'s5', name:'Pájaros (posterior)' },
+      { id:'s6', name:'Press Arnold' },
     ]},
     { key:'biceps', label:'BÍCEPS', icon:'zap', exercises:[
       { id:'bi1', name:'Curl de bíceps' },
       { id:'bi2', name:'Curl martillo' },
       { id:'bi3', name:'Curl concentrado' },
+      { id:'bi4', name:'Curl en polea' },
+      { id:'bi5', name:'Curl scott' },
+      { id:'bi6', name:'Curl 21' },
     ]},
     { key:'triceps', label:'TRÍCEPS', icon:'activity', exercises:[
       { id:'t1', name:'Extensión de tríceps' },
       { id:'t2', name:'Fondos en banco' },
       { id:'t3', name:'Press francés' },
+      { id:'t4', name:'Extensión en polea' },
+      { id:'t5', name:'Patada de tríceps' },
+      { id:'t6', name:'Press cerrado' },
     ]},
   ];
 
@@ -2583,16 +2610,50 @@
 
   // ---------- Flow 1: "Crear mi rutina" — manual exercise picker ----------
   let selectedExerciseIds = new Set();
+  let customRoutineIcon = DEFAULT_ROUTINE_ICON;
+  let createIconPickerOpen = false;
 
   function openExercisePicker(){
     closeCreateSheet();
     selectedExerciseIds = new Set();
     document.getElementById('routineNameInput').value = '';
+    customRoutineIcon = DEFAULT_ROUTINE_ICON;
+    createIconPickerOpen = false;
+    document.getElementById('createIconPreview').innerHTML = routineIconSvg(customRoutineIcon);
+    document.getElementById('createIconPickerGrid').style.display = 'none';
     renderExercisePicker();
     document.getElementById('exercisePickerScreen').classList.add('open');
+    feather.replace();
   }
   function closeExercisePicker(){
     document.getElementById('exercisePickerScreen').classList.remove('open');
+  }
+
+  // Same 12-icon set and same interaction as "Editar rutina" — one picker
+  // component, two entry points, so there's no second icon system to keep
+  // in sync if icons ever change.
+  function toggleCreateIconPicker(){
+    createIconPickerOpen = !createIconPickerOpen;
+    const el = document.getElementById('createIconPickerGrid');
+    el.style.display = createIconPickerOpen ? 'grid' : 'none';
+    if(createIconPickerOpen) renderCreateIconPickerGrid();
+  }
+
+  function renderCreateIconPickerGrid(){
+    const grid = document.getElementById('createIconPickerGrid');
+    grid.innerHTML = ROUTINE_ICONS.map(opt => (
+      '<div class="icon-option' + (opt.icon === customRoutineIcon ? ' selected' : '') + '" title="' + opt.label + '" onclick="selectCreateRoutineIcon(\'' + opt.icon + '\')">' +
+        routineIconSvg(opt.icon) +
+      '</div>'
+    )).join('');
+  }
+
+  function selectCreateRoutineIcon(icon){
+    customRoutineIcon = icon;
+    document.getElementById('createIconPreview').innerHTML = routineIconSvg(icon);
+    createIconPickerOpen = false;
+    document.getElementById('createIconPickerGrid').style.display = 'none';
+    feather.replace();
   }
 
   function renderExercisePicker(){
@@ -2647,7 +2708,7 @@
     const estimatedMinutes = Math.max(20, Math.round(exerciseCount * 9));
     const id = 'custom-' + Date.now();
 
-    routines.push({ id, name, exerciseCount, estimatedMinutes, lastPerformed:null, icon:DEFAULT_ROUTINE_ICON, exercises });
+    routines.push({ id, name, exerciseCount, estimatedMinutes, lastPerformed:null, icon:customRoutineIcon, exercises });
 
     closeExercisePicker();
     showTab('rutinas');
