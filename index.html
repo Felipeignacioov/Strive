@@ -1782,19 +1782,19 @@
       nextRow.style.display = 'none';
     }
 
-    // primary button
+    // primary button — resting always wins first: whatever the button would
+    // otherwise say (Iniciar serie, Siguiente ejercicio, Finalizar
+    // entrenamiento), it stays blocked and shows "Descansando…" until rest ends.
     const btn = document.getElementById('wkPrimaryBtn');
-    if(allDone){
+    if(restRemaining !== null){
+      btn.disabled = true;
+      btn.innerHTML = 'Descansando… <i data-feather="clock"></i>';
+    } else if(allDone){
       btn.disabled = false;
       btn.innerHTML = (isLast ? 'Finalizar entrenamiento' : 'Siguiente ejercicio') + ' <i data-feather="' + (isLast ? 'check' : 'arrow-right') + '"></i>';
     } else if(activeStatus === 'in_progress'){
       btn.disabled = false;
       btn.innerHTML = 'Completar serie <i data-feather="check"></i>';
-    } else if(restRemaining !== null){
-      // Resting: the next set is technically "not_started", but starting it
-      // is blocked until rest ends — this is the only new behavior here.
-      btn.disabled = true;
-      btn.innerHTML = 'Descansando… <i data-feather="clock"></i>';
     } else {
       btn.disabled = false;
       btn.innerHTML = 'Iniciar serie <i data-feather="play"></i>';
