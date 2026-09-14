@@ -640,11 +640,29 @@
     display:flex;align-items:center;justify-content:center;gap:8px;
     font-family:var(--font-body);font-weight:600;font-size:16px;color:#fff;
     box-shadow:0 10px 20px -5px rgba(185,28,53,0.45);
+    transition:background 0.15s ease;
   }
   .primary-btn svg{width:17px;height:17px;}
   .primary-btn:disabled{
     background:var(--surface-high);color:var(--text-tertiary);
     box-shadow:none;cursor:not-allowed;
+  }
+  /* Brief "set completed" confirmation state — reuses the same success
+     green already used elsewhere (set checkmarks, toasts), just for ~400ms
+     before the screen moves on to rest. Overrides the :disabled look above
+     while active so it reads as a confirmation, not a blocked button. */
+  .primary-btn.primary-btn-confirm:disabled{
+    background:var(--success);color:#0B0B0F;box-shadow:none;
+  }
+  .wk-check-pop{
+    display:inline-flex;align-items:center;justify-content:center;
+    animation:wkCheckPop 0.32s ease-out;
+  }
+  .wk-check-pop svg{width:17px;height:17px;}
+  @keyframes wkCheckPop{
+    0%{transform:scale(0.4);opacity:0;}
+    60%{transform:scale(1.15);opacity:1;}
+    100%{transform:scale(1);opacity:1;}
   }
 
   /* ================================================================
@@ -1856,8 +1874,24 @@
 
     // in_progress -> completed
     currentSet.completed = true;
-    startRest();
-    renderWorkout();
+    showSetCompletedFeedback();
+  }
+
+  // Brief, self-contained micro-feedback: confirm the set was registered
+  // before the screen moves on to rest. No intermediate screen — just the
+  // primary button itself, for ~400ms, then the existing rest flow runs
+  // exactly as it did before.
+  function showSetCompletedFeedback(){
+    const btn = document.getElementById('wkPrimaryBtn');
+    btn.disabled = true;
+    btn.classList.add('primary-btn-confirm');
+    btn.innerHTML = '<span class="wk-check-pop"><i data-feather="check"></i></span> Serie completada';
+    feather.replace();
+    setTimeout(() => {
+      btn.classList.remove('primary-btn-confirm');
+      startRest();
+      renderWorkout();
+    }, 420);
   }
 
   // ---------- Rest component: independent state, driven for real ----------
