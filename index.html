@@ -1612,25 +1612,25 @@
   // go through startWorkoutFromRoutine.
   let workout = [
     { name:'Press banca', repsRange:'6-10', sets:[
-      {weight:70, reps:8, completed:true},
-      {weight:70, reps:8, completed:true},
-      {weight:72.5, reps:7, completed:true},
-      {weight:72.5, reps:6, completed:false},
+      {weight:70, reps:8, started:true, completed:true},
+      {weight:70, reps:8, started:true, completed:true},
+      {weight:72.5, reps:7, started:true, completed:true},
+      {weight:72.5, reps:6, started:false, completed:false},
     ]},
     { name:'Press inclinado mancuerna', repsRange:'8-12', sets:[
-      {weight:26, reps:10, completed:false},
-      {weight:26, reps:10, completed:false},
-      {weight:26, reps:10, completed:false},
+      {weight:26, reps:10, started:false, completed:false},
+      {weight:26, reps:10, started:false, completed:false},
+      {weight:26, reps:10, started:false, completed:false},
     ]},
     { name:'Elevaciones laterales', repsRange:'10-15', sets:[
-      {weight:10, reps:15, completed:false},
-      {weight:10, reps:15, completed:false},
-      {weight:10, reps:15, completed:false},
+      {weight:10, reps:15, started:false, completed:false},
+      {weight:10, reps:15, started:false, completed:false},
+      {weight:10, reps:15, started:false, completed:false},
     ]},
     { name:'Extensión de tríceps', repsRange:'10-12', sets:[
-      {weight:22.5, reps:12, completed:false},
-      {weight:22.5, reps:12, completed:false},
-      {weight:22.5, reps:12, completed:false},
+      {weight:22.5, reps:12, started:false, completed:false},
+      {weight:22.5, reps:12, started:false, completed:false},
+      {weight:22.5, reps:12, started:false, completed:false},
     ]},
   ];
   let exIndex = 0;
@@ -1657,6 +1657,15 @@
     return ex.sets.findIndex(s => !s.completed);
   }
 
+  // Real state machine for the active set — not just a visual toggle.
+  // not_started -> in_progress -> completed, then the next set starts over
+  // at not_started (its default when created, nothing extra needed there).
+  function getSetStatus(set){
+    if(set.completed) return 'completed';
+    if(set.started) return 'in_progress';
+    return 'not_started';
+  }
+
   function renderWorkout(){
     const ex = workout[exIndex];
     const next = workout[exIndex+1];
@@ -1680,9 +1689,10 @@
     });
 
     // "Serie X de X" + per-set dots (tappable, keeps the old toggle-a-set capability)
+    const activeStatus = allDone ? null : getSetStatus(ex.sets[aIdx]);
     document.getElementById('wkSerieLabel').textContent = allDone
       ? 'Serie ' + totalSets + ' de ' + totalSets + ' · completada'
-      : 'Serie ' + (aIdx + 1) + ' de ' + totalSets;
+      : 'Serie ' + (aIdx + 1) + ' de ' + totalSets + (activeStatus === 'in_progress' ? ' · en curso' : '');
 
     const setDots = document.getElementById('wkSetDots');
     setDots.innerHTML = '';
@@ -1729,8 +1739,10 @@
     const btn = document.getElementById('wkPrimaryBtn');
     if(allDone){
       btn.innerHTML = (isLast ? 'Finalizar entrenamiento' : 'Siguiente ejercicio') + ' <i data-feather="' + (isLast ? 'check' : 'arrow-right') + '"></i>';
-    } else {
+    } else if(activeStatus === 'in_progress'){
       btn.innerHTML = 'Completar serie <i data-feather="check"></i>';
+    } else {
+      btn.innerHTML = 'Iniciar serie <i data-feather="play"></i>';
     }
 
     feather.replace();
@@ -1738,7 +1750,12 @@
 
   function toggleSet(i){
     const ex = workout[exIndex];
-    ex.sets[i].completed = !ex.sets[i].completed;
+    const set = ex.sets[i];
+    set.completed = !set.completed;
+    // Keep the state machine consistent even via this manual correction path:
+    // a completed set must have been started; un-completing sends it back to
+    // not_started rather than leaving it stuck in_progress.
+    set.started = set.completed;
     renderWorkout();
   }
 
@@ -1790,7 +1807,18 @@
       renderWorkout();
       return;
     }
-    ex.sets[aIdx].completed = true;
+
+    const currentSet = ex.sets[aIdx];
+    if(getSetStatus(currentSet) === 'not_started'){
+      // not_started -> in_progress. "Completar serie" only becomes available
+      // after this — the CTA itself enforces the order, nothing else needed.
+      currentSet.started = true;
+      renderWorkout();
+      return;
+    }
+
+    // in_progress -> completed
+    currentSet.completed = true;
     startRest();
     renderWorkout();
   }
@@ -2211,7 +2239,7 @@
     const targetReps = parseTargetReps(ex.repsRange);
     const sets = [];
     for(let i = 0; i < ex.sets; i++){
-      sets.push({ weight: ex.weight || 0, reps: targetReps, completed: false });
+      sets.push({ weight: ex.weight || 0, reps: targetReps, started: false, completed: false });
     }
     return sets;
   }
