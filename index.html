@@ -284,6 +284,16 @@
     margin-bottom:16px;position:relative;
   }
   .hero-empty-icon svg{width:22px;height:22px;color:var(--accent-bright);}
+  /* Post-workout summary badge — same visual language as .hero-empty-icon
+     (accent-soft fill, accent-soft border), just larger for a close/reward
+     moment. Everything else in that screen reuses existing card/stat/pr
+     classes, so this is the only new rule this feature needs. */
+  .ws-icon-badge{
+    width:64px;height:64px;border-radius:20px;
+    background:var(--accent-soft);border:1px solid var(--accent-soft-border);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ws-icon-badge svg{width:28px;height:28px;color:var(--accent-bright);}
   .hero-empty-title{
     font-family:var(--font-display);font-weight:700;font-size:25px;
     color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:6px;
@@ -1609,6 +1619,50 @@
     </div>
   </div>
 
+  <!-- ============ WORKOUT SUMMARY: real close/reward moment ============ -->
+  <!-- Shown only when finishing the last exercise of a workout, right
+       before returning to Home. Reuses .card/.summary-row/.stat and the
+       exact .pr-row component from Récords personales — no new visual
+       language, only a badge is new (see .ws-icon-badge). z-index sits
+       above both the workout overlay and other flow overlays so it always
+       lands on top regardless of what's still open underneath. -->
+  <div class="flow-overlay" id="workoutSummaryScreen" style="z-index:165;">
+    <div class="flow-body" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:56px;">
+      <div class="ws-icon-badge"><i data-feather="award"></i></div>
+      <div class="page-title" style="margin-top:18px;">¡Entrenamiento completado!</div>
+      <div class="page-subtitle" id="wsSubtitle">Push · 52 min</div>
+
+      <div style="height:28px"></div>
+
+      <div class="card" style="width:100%;">
+        <div class="summary-row">
+          <div class="stat" style="align-items:center"><span class="v" id="wsSetsValue">16</span><span class="l">series</span></div>
+          <div class="v-divider"></div>
+          <div class="stat" style="align-items:center"><span class="v" id="wsExercisesValue">4</span><span class="l">ejercicios</span></div>
+          <div class="v-divider"></div>
+          <div class="stat" style="align-items:center"><span class="v" id="wsDurationValue">52 min</span><span class="l">duración</span></div>
+        </div>
+      </div>
+
+      <div style="height:24px"></div>
+
+      <div id="wsPrSection" style="width:100%;display:none;">
+        <div class="section-header" style="margin-bottom:10px;">
+          <span class="section-title" style="font-size:17px;">Nuevos récords</span>
+        </div>
+        <div class="card" style="padding:0;">
+          <div id="wsPrList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-footer">
+      <button class="flow-primary-btn" onclick="closeWorkoutSummary()">
+        Volver a inicio <i data-feather="arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- ============ SUCCESS TOAST ============ -->
   <div class="toast" id="successToast">
     <div class="toast-icon"><i data-feather="check"></i></div>
@@ -1702,6 +1756,52 @@
     document.getElementById('workoutOverlay').classList.remove('open');
     clearInterval(restInterval);
     restPaused = false;
+  }
+
+  // ---------- Post-workout summary: the session's actual close/reward moment ----------
+  // Shown only when a real session was logged (summary !== null). Reads
+  // exclusively from what logCompletedWorkout() just computed — no separate
+  // data path, nothing invented if there were no PRs this session.
+  function showWorkoutSummary(summary){
+    if(!summary){
+      // Defensive: nothing was actually completed (shouldn't happen from the
+      // normal flow, since the button is only reachable after finishing a
+      // set) — don't show a summary with fabricated numbers, just go home.
+      closeWorkout();
+      showTab('home');
+      return;
+    }
+
+    document.getElementById('wsSubtitle').textContent = summary.routineName + ' · ' + summary.durationMinutes + ' min';
+    document.getElementById('wsSetsValue').textContent = summary.totalSets;
+    document.getElementById('wsExercisesValue').textContent = summary.totalExercises;
+    document.getElementById('wsDurationValue').textContent = summary.durationMinutes + ' min';
+
+    const prSection = document.getElementById('wsPrSection');
+    if(summary.prBreaks.length > 0){
+      prSection.style.display = 'block';
+      document.getElementById('wsPrList').innerHTML = summary.prBreaks.map(pr => (
+        '<div class="pr-row">' +
+          '<div class="pr-icon"><i data-feather="award"></i></div>' +
+          '<div>' +
+            '<div class="pr-name">' + pr.exerciseName + '</div>' +
+            '<div class="pr-date">Antes: ' + formatWeightEs(pr.previous) + ' kg</div>' +
+          '</div>' +
+          '<div class="pr-delta pr-delta-up"><i data-feather="trending-up"></i> ' + formatWeightEs(pr.weight) + ' kg</div>' +
+        '</div>'
+      )).join('');
+    } else {
+      prSection.style.display = 'none';
+    }
+
+    document.getElementById('workoutSummaryScreen').classList.add('open');
+    feather.replace();
+  }
+
+  function closeWorkoutSummary(){
+    document.getElementById('workoutSummaryScreen').classList.remove('open');
+    closeWorkout();
+    showTab('home');
   }
 
   function activeSetIndex(ex){
@@ -1861,9 +1961,8 @@
       restPaused = false;
       document.getElementById('restBanner').style.display = 'none';
       if(exIndex === workout.length - 1){
-        logCompletedWorkout();
-        closeWorkout();
-        showTab('home');
+        const summary = logCompletedWorkout();
+        showWorkoutSummary(summary);
         return;
       }
       exIndex++;
@@ -2908,6 +3007,10 @@
   // gets appended here as a full session (routine, duration, sets). Neither
   // "Récords personales" nor "Historial de entrenamientos" store anything of
   // their own — they both just re-read this log.
+  //
+  // Also returns a plain summary object for the post-workout close screen
+  // (see showWorkoutSummary) — computed from this same real data, nothing
+  // separate to keep in sync.
   function logCompletedWorkout(){
     const entries = [];
     workout.forEach(ex => {
@@ -2917,7 +3020,22 @@
         }
       });
     });
-    if(entries.length === 0) return;
+    if(entries.length === 0) return null;
+
+    // PR detection happens BEFORE this session is added to the log, so
+    // "previous best" genuinely means "before today". A first-ever entry
+    // for an exercise (previousBest === null) is not counted as a record
+    // broken — there's nothing to compare it against yet.
+    const exerciseNames = Array.from(new Set(entries.map(e => e.exerciseName)));
+    const prBreaks = [];
+    exerciseNames.forEach(name => {
+      const previousBest = computePreviousBestForExercise(name);
+      const sessionBest = Math.max(...entries.filter(e => e.exerciseName === name).map(e => e.weightKg));
+      if(previousBest !== null && sessionBest > previousBest){
+        prBreaks.push({ exerciseName: name, weight: sessionBest, previous: previousBest });
+      }
+    });
+
     const elapsedMs = workoutStartedAt ? (Date.now() - workoutStartedAt) : 0;
     const durationMinutes = Math.max(1, Math.round(elapsedMs / 60000));
     workoutLogs.push({
@@ -2929,6 +3047,29 @@
     });
     renderPersonalRecords();
     renderTrainingCalendar();
+
+    return {
+      routineName: activeRoutineName,
+      durationMinutes,
+      totalSets: entries.length,
+      totalExercises: exerciseNames.length,
+      prBreaks,
+    };
+  }
+
+  // Same "before today" comparison the PR list itself relies on — scans
+  // every existing log for this exercise (any source) and returns the
+  // heaviest weight found, or null if it's never been logged before.
+  function computePreviousBestForExercise(exerciseName){
+    let best = null;
+    workoutLogs.forEach(log => {
+      log.entries.forEach(e => {
+        if(e.exerciseName === exerciseName && (best === null || e.weightKg > best)){
+          best = e.weightKg;
+        }
+      });
+    });
+    return best;
   }
 
   function formatWeightEs(kg){
