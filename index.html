@@ -503,6 +503,23 @@
      (still call toggleSet, so correcting a mistaken tap keeps working). */
   .wk-exercise-meta{font-family:var(--font-body);font-weight:500;font-size:14px;color:var(--text-secondary);margin-top:6px;}
   .wk-serie-row{display:flex;align-items:center;justify-content:space-between;margin:22px 0 14px 0;}
+  /* Pure activity signal for the "in_progress" set state — no percentage,
+     no duration, just a subtle continuous motion. Hidden the rest of the
+     time; toggled purely by display:none/block from renderWorkout(). */
+  .wk-activity-bar{
+    width:100%;height:3px;border-radius:999px;
+    background:var(--track-empty);overflow:hidden;position:relative;
+    margin:-6px 0 14px 0;
+  }
+  .wk-activity-bar-fill{
+    position:absolute;top:0;left:-35%;height:100%;width:35%;border-radius:999px;
+    background:linear-gradient(90deg, rgba(224,45,72,0), var(--accent-bright), rgba(224,45,72,0));
+    animation:wkActivitySlide 1.7s ease-in-out infinite;
+  }
+  @keyframes wkActivitySlide{
+    0%{left:-35%;}
+    100%{left:100%;}
+  }
   .wk-serie-label{font-family:var(--font-body);font-weight:700;font-size:12.5px;color:var(--accent-bright);text-transform:uppercase;letter-spacing:0.4px;}
   .wk-set-dots{display:flex;align-items:center;gap:7px;}
   .wk-set-dot{width:7px;height:7px;border-radius:999px;background:var(--track-empty);border:1.5px solid transparent;cursor:pointer;transition:background 0.15s ease,border-color 0.15s ease;}
@@ -1213,6 +1230,10 @@
       <div class="wk-set-dots" id="wkSetDots"></div>
     </div>
 
+    <div class="wk-activity-bar" id="wkActivityBar" style="display:none">
+      <div class="wk-activity-bar-fill"></div>
+    </div>
+
     <div class="wk-current-set-card">
       <div class="wk-field">
         <div class="wk-field-label">Peso</div>
@@ -1693,6 +1714,10 @@
     document.getElementById('wkSerieLabel').textContent = allDone
       ? 'Serie ' + totalSets + ' de ' + totalSets + ' · completada'
       : 'Serie ' + (aIdx + 1) + ' de ' + totalSets + (activeStatus === 'in_progress' ? ' · en curso' : '');
+
+    // Pure activity signal — visible only while the active set is in_progress.
+    document.getElementById('wkActivityBar').style.display =
+      (!allDone && activeStatus === 'in_progress') ? 'block' : 'none';
 
     const setDots = document.getElementById('wkSetDots');
     setDots.innerHTML = '';
