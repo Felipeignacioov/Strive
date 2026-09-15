@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<!-- Strive Exercise Library — imported from RepDB (see exercise-library.js header).
+     Loaded as a plain script tag (not fetch) so this keeps working when the
+     app is opened directly as a file, with no local server involved. -->
+<script src="exercise-library.js"></script>
 <style>
   :root{
     --bg:#0B0B0F;
@@ -748,6 +752,21 @@
     font-size:14.5px;cursor:pointer;margin-top:4px;
   }
 
+  /* ---------- "Ver ejercicio" sheet: A -> B demo images ---------- */
+  .ex-demo-images{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .ex-demo-img-wrap{
+    flex:1;aspect-ratio:1;border-radius:18px;overflow:hidden;
+    background:var(--surface-high);border:1px solid var(--border);
+  }
+  .ex-demo-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .ex-demo-arrow{flex-shrink:0;color:var(--text-tertiary);}
+  .ex-demo-arrow svg{width:18px;height:18px;}
+  .ex-demo-meta{font-family:var(--font-body);font-size:13.5px;color:var(--text-secondary);margin-bottom:18px;}
+  .ex-demo-attribution{
+    font-family:var(--font-body);font-size:11px;color:var(--text-tertiary);
+    text-align:center;margin-bottom:14px;
+  }
+
   /* ---------- Shared: full-screen flow overlays ---------- */
   .flow-overlay{
     position:absolute;inset:0;background:var(--bg);
@@ -798,6 +817,10 @@
   .exercise-card.selected .exercise-card-icon{background:var(--accent-dim);}
   .exercise-card-icon svg{width:17px;height:17px;color:var(--text-secondary);}
   .exercise-card.selected .exercise-card-icon svg{color:#fff;}
+  /* Real RepDB thumbnail instead of the generic muscle-group icon, same
+     frame/radius — used only when the catalog entry actually has an image. */
+  .exercise-card-icon-photo{overflow:hidden;padding:0;}
+  .exercise-card-icon-photo img{width:100%;height:100%;object-fit:cover;display:block;}
   .exercise-card-name{font-family:var(--font-body);font-weight:600;font-size:13.5px;color:var(--text-primary);line-height:1.25;}
   .exercise-check{
     position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:999px;
@@ -857,6 +880,11 @@
   .flow-secondary-btn svg{width:15px;height:15px;color:var(--text-secondary);}
 
   /* ---------- Routine detail: editable "marca actual" per exercise ---------- */
+  .routine-ex-demo-btn{
+    width:34px;height:34px;border-radius:10px;flex-shrink:0;overflow:hidden;
+    border:none;padding:0;cursor:pointer;background:var(--surface-high);
+  }
+  .routine-ex-demo-btn img{width:100%;height:100%;object-fit:cover;display:block;}
   .routine-ex-weight-btn{
     font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--text-primary);
     background:var(--surface-high);padding:5px 10px;border-radius:9px;flex-shrink:0;
@@ -1251,6 +1279,9 @@
       <div style="height:12px"></div>
       <div class="logout-row"><i data-feather="log-out"></i><span>Cerrar sesión</span></div>
 
+      <div style="height:20px"></div>
+      <div style="text-align:center;font-family:var(--font-body);font-size:11px;color:var(--text-tertiary);">Ejercicios e imágenes por RepDB (repdb.co)</div>
+
       <div style="height:24px"></div>
     </div>
 
@@ -1541,6 +1572,21 @@
     </div>
 
     <button class="sheet-cancel" onclick="closeRoutineMenu()">Cancelar</button>
+  </div>
+
+  <!-- ============ VER EJERCICIO: demo A -> B (RepDB) ============ -->
+  <!-- Reached only from the routine preview, before training — never during
+       an active set, per the "no interrumpir el registro" requirement. -->
+  <div class="sheet-backdrop" id="exerciseDemoBackdrop" onclick="closeExerciseDemo()"></div>
+  <div class="action-sheet" id="exerciseDemoSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="exerciseDemoName" style="margin-bottom:16px;">Press banca</div>
+
+    <div class="ex-demo-images" id="exerciseDemoImages"></div>
+    <div class="ex-demo-meta" id="exerciseDemoMeta">Pecho · Mancuerna</div>
+
+    <div class="ex-demo-attribution" id="exerciseDemoAttribution" style="display:none;">Imágenes por RepDB (repdb.co)</div>
+    <button class="sheet-cancel" onclick="closeExerciseDemo()">Cerrar</button>
   </div>
 
   <!-- ============ CONFIRM DELETE ============ -->
@@ -2386,8 +2432,79 @@
   const EXERCISE_NAME_BY_ID = {};
   MUSCLE_GROUPS.forEach(group => group.exercises.forEach(ex => { EXERCISE_NAME_BY_ID[ex.id] = ex.name; }));
 
+  // ================================================================
+  // Exercise Library (RepDB import) — additive, never overwrites the
+  // 36 hand-curated exercises above. See import_repdb.py for why: RepDB's
+  // naming is always variant-specific ("Sentadilla con Peso Corporal" vs.
+  // "Sentadilla Búlgara"), so auto-matching them to the generic legacy
+  // names ("Sentadilla") would risk silently mislabeling an exercise a
+  // user already has PRs logged against. Instead the ~601 imported
+  // exercises live as new catalog entries (ids prefixed "rdb-"), and
+  // CATALOG_GROUPS below is the single merged view every picker reads
+  // from — MUSCLE_GROUPS itself, and everything already keyed off it
+  // (EXERCISE_NAME_BY_ID, GOAL_ROUTINE_TEMPLATES' refs), is untouched.
+  const LIBRARY_GROUP_META = {
+    core: { label:'CORE', icon:'crosshair' },
+    antebrazos: { label:'ANTEBRAZOS', icon:'move' },
+    cuerpo_completo: { label:'CUERPO COMPLETO', icon:'user' },
+  };
+
+  function buildCatalogGroups(){
+    const groups = MUSCLE_GROUPS.map(g => ({
+      key: g.key, label: g.label, icon: g.icon,
+      exercises: g.exercises.map(ex => ({
+        id: ex.id, name: ex.name,
+        imageStart: null, imageEnd: null, equipment: null, muscles: null,
+        groupLabel: g.label.charAt(0) + g.label.slice(1).toLowerCase(),
+        groupIcon: g.icon, source: 'manual',
+      })),
+    }));
+    const byKey = {};
+    groups.forEach(g => { byKey[g.key] = g; });
+
+    const library = window.STRIVE_EXERCISE_LIBRARY || [];
+    library.forEach(item => {
+      let group = byKey[item.muscleGroup];
+      if(!group){
+        const meta = LIBRARY_GROUP_META[item.muscleGroup] || { label: item.muscleGroup.toUpperCase(), icon:'circle' };
+        group = { key:item.muscleGroup, label:meta.label, icon:meta.icon, exercises:[] };
+        byKey[item.muscleGroup] = group;
+        groups.push(group);
+      }
+      group.exercises.push({
+        id: item.id, name: item.name,
+        imageStart: item.imageStart, imageEnd: item.imageEnd,
+        equipment: item.equipment, muscles: item.muscles,
+        groupLabel: group.label.charAt(0) + group.label.slice(1).toLowerCase(),
+        groupIcon: group.icon, source: item.source || 'repdb',
+      });
+    });
+    return groups;
+  }
+
+  const CATALOG_GROUPS = buildCatalogGroups();
+
+  // id -> full catalog entry (name, images, equipment, group label/icon).
+  // The single lookup the routine-detail "Ver ejercicio" sheet and the
+  // picker card thumbnails both read from.
+  const EXERCISE_DETAILS_BY_ID = {};
+  CATALOG_GROUPS.forEach(group => group.exercises.forEach(ex => {
+    EXERCISE_DETAILS_BY_ID[ex.id] = ex;
+    EXERCISE_NAME_BY_ID[ex.id] = ex.name; // extends the legacy lookup so library ids resolve too
+  }));
+
+  // Resolves a routine's exercise entry to its catalog details: by
+  // exerciseId when present (every exercise added from now on gets one),
+  // falling back to a name match for routines created before this existed.
+  function findCatalogExerciseFor(routineExercise){
+    if(routineExercise.exerciseId && EXERCISE_DETAILS_BY_ID[routineExercise.exerciseId]){
+      return EXERCISE_DETAILS_BY_ID[routineExercise.exerciseId];
+    }
+    return Object.values(EXERCISE_DETAILS_BY_ID).find(e => e.name === routineExercise.name) || null;
+  }
+
   function findMuscleGroupLabelForExercise(exerciseName){
-    const group = MUSCLE_GROUPS.find(g => g.exercises.some(ex => ex.name === exerciseName));
+    const group = CATALOG_GROUPS.find(g => g.exercises.some(ex => ex.name === exerciseName));
     if(!group) return null;
     return group.label.charAt(0) + group.label.slice(1).toLowerCase();
   }
@@ -2450,7 +2567,15 @@
           : '<button class="routine-ex-weight-btn unset" onclick="startEditWeight(' + i + ')">+ Añadir peso</button>';
       }
 
-      return '<div class="routine-ex-row"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + weightHtml + '</div>';
+      // "Ver ejercicio" — only shown when the catalog actually has an image
+      // for this exercise (legacy hand-typed exercises without a match
+      // simply don't get the button, never a broken/empty demo).
+      const catalogEx = findCatalogExerciseFor(ex);
+      const demoHtml = (catalogEx && catalogEx.imageStart)
+        ? '<button class="routine-ex-demo-btn" onclick="openExerciseDemo(\'' + catalogEx.id + '\')" title="Ver ejercicio"><img src="' + catalogEx.imageStart + '" alt="" loading="lazy" /></button>'
+        : '';
+
+      return '<div class="routine-ex-row"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + demoHtml + weightHtml + '</div>';
     }).join('');
 
     feather.replace();
@@ -2650,18 +2775,28 @@
     if(editCatalogOpen) renderEditRoutineCatalog();
   }
 
+  // Shared by every exercise-card grid (Crear mi rutina, Editar rutina):
+  // shows the real RepDB start-pose thumbnail when the catalog entry has
+  // one, falls back to the group's generic icon otherwise — same frame.
+  function exerciseCardIconHtml(ex, groupIcon){
+    if(ex.imageStart){
+      return '<div class="exercise-card-icon exercise-card-icon-photo"><img src="' + ex.imageStart + '" alt="' + ex.name + '" loading="lazy"></div>';
+    }
+    return '<div class="exercise-card-icon"><i data-feather="' + groupIcon + '"></i></div>';
+  }
+
   // Reuses the exact same catalog grid as "Crear mi rutina". A card shows as
   // selected when its exercise is already in the routine; tapping toggles
   // it in or out — one interaction model for adding, everywhere in the app.
   function renderEditRoutineCatalog(){
     const container = document.getElementById('editRoutineCatalog');
     const currentNames = editingRoutineExercises.map(ex => ex.name);
-    container.innerHTML = MUSCLE_GROUPS.map(group => {
+    container.innerHTML = CATALOG_GROUPS.map(group => {
       const cards = group.exercises.map(ex => {
         const isSelected = currentNames.indexOf(ex.name) !== -1;
         return (
           '<div class="exercise-card' + (isSelected ? ' selected' : '') + '" onclick="toggleEditCatalogExercise(\'' + ex.id + '\')">' +
-            '<div class="exercise-card-icon"><i data-feather="' + group.icon + '"></i></div>' +
+            exerciseCardIconHtml(ex, group.icon) +
             '<div class="exercise-card-name">' + ex.name + '</div>' +
             '<div class="exercise-check">' + (isSelected ? '<i data-feather="check"></i>' : '') + '</div>' +
           '</div>'
@@ -2678,7 +2813,7 @@
     if(existingIndex !== -1){
       editingRoutineExercises.splice(existingIndex, 1);
     } else {
-      editingRoutineExercises.push({ name, sets: 3, repsRange: '8-12' });
+      editingRoutineExercises.push({ name, exerciseId, sets: 3, repsRange: '8-12' });
     }
     renderEditRoutineExercises();
     renderEditRoutineCatalog();
@@ -2718,6 +2853,39 @@
   function closeRoutineMenu(){
     document.getElementById('routineMenuBackdrop').classList.remove('open');
     document.getElementById('routineMenuSheet').classList.remove('open');
+  }
+
+  // ---------- "Ver ejercicio": A -> B demo, only reachable from the routine
+  // preview (never mid-set). Attribution to RepDB shows only inside this
+  // sheet, never persistently during training — per the license's "no
+  // constant attribution during use" spirit and the product requirement.
+  function openExerciseDemo(exerciseId){
+    const ex = EXERCISE_DETAILS_BY_ID[exerciseId];
+    if(!ex || !ex.imageStart) return;
+
+    document.getElementById('exerciseDemoName').textContent = ex.name;
+
+    const imagesHtml = ['<div class="ex-demo-img-wrap"><img src="' + ex.imageStart + '" alt="' + ex.name + ' — posición inicial" /></div>'];
+    if(ex.imageEnd){
+      imagesHtml.push('<div class="ex-demo-arrow"><i data-feather="arrow-right"></i></div>');
+      imagesHtml.push('<div class="ex-demo-img-wrap"><img src="' + ex.imageEnd + '" alt="' + ex.name + ' — posición final" /></div>');
+    }
+    document.getElementById('exerciseDemoImages').innerHTML = imagesHtml.join('');
+
+    const metaParts = [ex.groupLabel];
+    if(ex.equipment) metaParts.push(ex.equipment);
+    document.getElementById('exerciseDemoMeta').textContent = metaParts.join(' · ');
+
+    document.getElementById('exerciseDemoAttribution').style.display = (ex.source === 'repdb') ? 'block' : 'none';
+
+    document.getElementById('exerciseDemoBackdrop').classList.add('open');
+    document.getElementById('exerciseDemoSheet').classList.add('open');
+    feather.replace();
+  }
+
+  function closeExerciseDemo(){
+    document.getElementById('exerciseDemoBackdrop').classList.remove('open');
+    document.getElementById('exerciseDemoSheet').classList.remove('open');
   }
 
   function editRoutineFromMenu(){
@@ -2818,12 +2986,12 @@
 
   function renderExercisePicker(){
     const body = document.getElementById('exercisePickerBody');
-    body.innerHTML = MUSCLE_GROUPS.map(group => {
+    body.innerHTML = CATALOG_GROUPS.map(group => {
       const cards = group.exercises.map(ex => {
         const isSelected = selectedExerciseIds.has(ex.id);
         return (
           '<div class="exercise-card' + (isSelected ? ' selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
-            '<div class="exercise-card-icon"><i data-feather="' + group.icon + '"></i></div>' +
+            exerciseCardIconHtml(ex, group.icon) +
             '<div class="exercise-card-name">' + ex.name + '</div>' +
             '<div class="exercise-check">' + (isSelected ? '<i data-feather="check"></i>' : '') + '</div>' +
           '</div>'
@@ -2860,6 +3028,7 @@
     // configured these yet, so a sensible general-purpose default is used.
     const exercises = Array.from(selectedExerciseIds).map(id => ({
       name: EXERCISE_NAME_BY_ID[id],
+      exerciseId: id,
       sets: 3,
       repsRange: '8-12',
     }));
@@ -2991,6 +3160,7 @@
     const template = GOAL_ROUTINE_TEMPLATES[goalKey] || GOAL_ROUTINE_TEMPLATES.fitness;
     const exercises = template.exercises.map(t => ({
       name: EXERCISE_NAME_BY_ID[t.ref],
+      exerciseId: t.ref,
       sets: t.sets,
       repsRange: t.repsRange,
     }));
@@ -3385,8 +3555,8 @@
   // appends one more entry to the same workoutLogs array that real workouts
   // write to, so it flows through the exact same record calculation above.
   function getAllCatalogExercises(){
-    // Reuses the same exercise catalog as "Crear mi rutina" — one list, two screens.
-    return MUSCLE_GROUPS.flatMap(group => group.exercises.map(ex => ({ name: ex.name, group: group.label })));
+    // Reuses the same merged catalog as "Crear mi rutina" — one list, everywhere.
+    return CATALOG_GROUPS.flatMap(group => group.exercises.map(ex => ({ name: ex.name, group: group.label })));
   }
 
   function openAddRecordScreen(){
