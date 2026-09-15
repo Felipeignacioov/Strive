@@ -556,6 +556,16 @@
   .wk-field-input:disabled{color:var(--text-secondary);}
   .wk-field-unit{font-family:var(--font-body);font-weight:500;font-size:13px;color:var(--text-tertiary);}
   .wk-field-divider{width:1px;align-self:stretch;background:var(--border);}
+  /* Active-workout demo images (A -> B) — same frame language as the
+     "Ver ejercicio" sheet's images (same radius, same neutral border/bg),
+     just sized to sit under the weight/reps card. No red here on purpose —
+     red stays reserved for the primary action per Strive's identity rule. */
+  .wk-demo-images{display:flex;gap:10px;margin-top:14px;}
+  .wk-demo-img-wrap{
+    flex:1;aspect-ratio:4/3;border-radius:18px;overflow:hidden;
+    background:var(--surface-high);border:1px solid var(--border);
+  }
+  .wk-demo-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
   .wk-last-time{display:flex;align-items:center;gap:6px;margin-top:14px;padding:0 4px;}
   .wk-last-time svg{width:12px;height:12px;color:var(--text-tertiary);}
   .wk-last-time-label{font-family:var(--font-body);font-weight:600;font-size:12px;color:var(--text-tertiary);}
@@ -1338,6 +1348,11 @@
         </div>
       </div>
 
+      <div class="wk-demo-images" id="wkDemoImages" style="display:none">
+        <div class="wk-demo-img-wrap"><img id="wkDemoImgA" src="" alt="" loading="lazy" /></div>
+        <div class="wk-demo-img-wrap"><img id="wkDemoImgB" src="" alt="" loading="lazy" /></div>
+      </div>
+
       <div class="wk-last-time" id="wkLastTime" style="display:none">
         <i data-feather="clock"></i>
         <span class="wk-last-time-label">Última vez</span>
@@ -1941,6 +1956,22 @@
     weightInput.dataset.setIndex = focusIdx;
     repsInput.dataset.setIndex = focusIdx;
 
+    // Demo images (A -> B) for the exercise currently on screen — shown
+    // for any set state (not_started/in_progress/finished), same as the
+    // exercise name/meta above it. Lives inside #wkExerciseContent, so it
+    // already fades with the rest of the content when the exercise changes.
+    const demo = getDemoImagesForExerciseName(ex.name);
+    const demoEl = document.getElementById('wkDemoImages');
+    if(demo){
+      demoEl.style.display = 'flex';
+      document.getElementById('wkDemoImgA').src = demo.imageStart;
+      document.getElementById('wkDemoImgA').alt = ex.name + ' — posición A';
+      document.getElementById('wkDemoImgB').src = demo.imageEnd;
+      document.getElementById('wkDemoImgB').alt = ex.name + ' — posición B';
+    } else {
+      demoEl.style.display = 'none';
+    }
+
     // "Última vez": real last logged session for this exercise, from workoutLogs.
     const last = getLastPerformanceForExercise(ex.name);
     const lastTimeEl = document.getElementById('wkLastTime');
@@ -2507,6 +2538,45 @@
     const group = CATALOG_GROUPS.find(g => g.exercises.some(ex => ex.name === exerciseName));
     if(!group) return null;
     return group.label.charAt(0) + group.label.slice(1).toLowerCase();
+  }
+
+  // ================================================================
+  // Active-workout demo images (A -> B) — curated correspondence between
+  // Strive's own exercise names and RepDB's *own id* (not a name guess).
+  // Strive is NOT importing the 601-exercise library into its catalog for
+  // this — it only borrows the images for exercises Strive already uses in
+  // its current routines, via the exact same EXERCISE_DETAILS_BY_ID lookup
+  // the "Ver ejercicio" sheet already reads from. One image system, two
+  // places that read it.
+  //
+  // Add more entries here as more Strive exercises get a confirmed RepDB
+  // correspondence — this table is the only thing that needs to grow.
+  const LEGACY_EXERCISE_IMAGE_MAP = {
+    'Press banca': 'bench-press',
+    'Press inclinado mancuerna': 'incline-db-press',
+    'Elevaciones laterales': 'lateral-raise',
+    'Extensión de tríceps': 'tricep-pushdown',
+    'Dominadas': 'pull-up',
+    'Remo con barra': 'barbell-row',
+    'Jalón al pecho': 'lat-pulldown',
+    'Face pull': 'face-pull',
+    'Curl de bíceps': 'barbell-curl',
+    'Sentadilla': 'squat',
+    'Peso muerto rumano': 'romanian-deadlift',
+    'Prensa': 'leg-press',
+    'Curl femoral': 'leg-curl',
+    'Elevación de talones': 'standing-calf-raise',
+  };
+
+  // Requires BOTH images — a lopsided single-image A/B block would look
+  // broken, so an exercise without a confirmed start+end pair simply gets
+  // no demo block at all (see "no rompas la interfaz" requirement).
+  function getDemoImagesForExerciseName(exerciseName){
+    const rdbSourceId = LEGACY_EXERCISE_IMAGE_MAP[exerciseName];
+    if(!rdbSourceId) return null;
+    const details = EXERCISE_DETAILS_BY_ID['rdb-' + rdbSourceId];
+    if(!details || !details.imageStart || !details.imageEnd) return null;
+    return details;
   }
 
   // ---------- Routine preview: "Ver rutina" ≠ "Entrenar rutina" ----------
