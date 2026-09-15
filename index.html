@@ -557,6 +557,25 @@
   .wk-last-time-label{font-family:var(--font-body);font-weight:600;font-size:12px;color:var(--text-tertiary);}
   .wk-last-time-value{font-family:var(--font-body);font-weight:600;font-size:12.5px;color:var(--text-secondary);}
 
+  /* Micro-transition into the "exercise finished" state — plays only when
+     the last set of an exercise completes automatically, never on a manual
+     "Siguiente ejercicio" press. Opacity + a 4px shift only, no new colors,
+     no bounce, no scale. */
+  #wkExerciseContent.wk-fade-out{
+    animation:wkExerciseFadeOut 0.1s ease-out forwards;
+  }
+  #wkExerciseContent.wk-fade-in{
+    animation:wkExerciseFadeIn 0.14s ease-out;
+  }
+  @keyframes wkExerciseFadeOut{
+    from{opacity:1;transform:translateY(0);}
+    to{opacity:0;transform:translateY(-4px);}
+  }
+  @keyframes wkExerciseFadeIn{
+    from{opacity:0;transform:translateY(4px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+
   /* ---------- Workout overlay ---------- */
   .workout-overlay{
     position:absolute;inset:0;background:var(--bg);
@@ -657,21 +676,21 @@
     background:var(--surface-high);color:var(--text-tertiary);
     box-shadow:none;cursor:not-allowed;
   }
-  /* Brief "set completed" confirmation state — stays on-brand (Strive red),
-     just for ~350ms before the screen advances. Overrides the grey
-     :disabled look above while active, so it reads as a confirmation, not
-     a blocked button. */
+  /* Brief "set completed" confirmation state — dark surface, white text,
+     only the check itself in Strive red. Reads as a quiet confirmation,
+     not a celebration. Overrides the grey :disabled look above while
+     active, so it's clearly a deliberate state, not a blocked button. */
   .primary-btn.primary-btn-confirm:disabled{
-    background:linear-gradient(135deg,var(--accent-bright),var(--accent));
+    background:var(--surface-high);
     color:#fff;
-    box-shadow:0 10px 20px -5px rgba(185,28,53,0.45);
+    box-shadow:none;
     cursor:default;
   }
   .wk-check-pop{
     display:inline-flex;align-items:center;justify-content:center;
     animation:wkCheckPop 0.32s ease-out;
   }
-  .wk-check-pop svg{width:17px;height:17px;}
+  .wk-check-pop svg{width:17px;height:17px;color:var(--accent-bright);}
   @keyframes wkCheckPop{
     0%{transform:scale(0.4);opacity:0;}
     60%{transform:scale(1.15);opacity:1;}
@@ -1257,40 +1276,42 @@
 
     <div class="dots-row" id="wkDots"></div>
 
-    <div class="exercise-name" id="wkExerciseName">Press banca</div>
-    <div class="wk-exercise-meta" id="wkExerciseMeta">4 series · 6-10 reps</div>
+    <div id="wkExerciseContent">
+      <div class="exercise-name" id="wkExerciseName">Press banca</div>
+      <div class="wk-exercise-meta" id="wkExerciseMeta">4 series · 6-10 reps</div>
 
-    <div class="wk-serie-row">
-      <span class="wk-serie-label" id="wkSerieLabel">Serie 2 de 4</span>
-      <div class="wk-set-dots" id="wkSetDots"></div>
-    </div>
+      <div class="wk-serie-row">
+        <span class="wk-serie-label" id="wkSerieLabel">Serie 2 de 4</span>
+        <div class="wk-set-dots" id="wkSetDots"></div>
+      </div>
 
-    <div class="wk-activity-bar" id="wkActivityBar" style="display:none">
-      <div class="wk-activity-bar-fill"></div>
-    </div>
+      <div class="wk-activity-bar" id="wkActivityBar" style="display:none">
+        <div class="wk-activity-bar-fill"></div>
+      </div>
 
-    <div class="wk-current-set-card">
-      <div class="wk-field">
-        <div class="wk-field-label">Peso</div>
-        <div class="wk-field-value">
-          <input type="number" inputmode="decimal" step="0.5" min="0" class="wk-field-input" id="wkWeightInput" />
-          <span class="wk-field-unit">kg</span>
+      <div class="wk-current-set-card">
+        <div class="wk-field">
+          <div class="wk-field-label">Peso</div>
+          <div class="wk-field-value">
+            <input type="number" inputmode="decimal" step="0.5" min="0" class="wk-field-input" id="wkWeightInput" />
+            <span class="wk-field-unit">kg</span>
+          </div>
+        </div>
+        <div class="wk-field-divider"></div>
+        <div class="wk-field">
+          <div class="wk-field-label">Repeticiones</div>
+          <div class="wk-field-value">
+            <input type="number" inputmode="numeric" min="0" class="wk-field-input" id="wkRepsInput" />
+            <span class="wk-field-unit">reps</span>
+          </div>
         </div>
       </div>
-      <div class="wk-field-divider"></div>
-      <div class="wk-field">
-        <div class="wk-field-label">Repeticiones</div>
-        <div class="wk-field-value">
-          <input type="number" inputmode="numeric" min="0" class="wk-field-input" id="wkRepsInput" />
-          <span class="wk-field-unit">reps</span>
-        </div>
-      </div>
-    </div>
 
-    <div class="wk-last-time" id="wkLastTime" style="display:none">
-      <i data-feather="clock"></i>
-      <span class="wk-last-time-label">Última vez</span>
-      <span class="wk-last-time-value" id="wkLastTimeValue">—</span>
+      <div class="wk-last-time" id="wkLastTime" style="display:none">
+        <i data-feather="clock"></i>
+        <span class="wk-last-time-label">Última vez</span>
+        <span class="wk-last-time-value" id="wkLastTimeValue">—</span>
+      </div>
     </div>
 
     <div class="rest-banner" id="restBanner" style="display:none">
@@ -1710,7 +1731,7 @@
   }
 
   // ---------- Workout mode state ----------
-  const REST_SECONDS = 90;
+  const REST_SECONDS = 120;
   // This is the default/demo state used when Home's hero card starts today's
   // workout directly. When a routine is started from its preview screen
   // (startWorkoutFromRoutine), this gets rebuilt from that routine's own
@@ -1989,9 +2010,11 @@
 
   // Brief, self-contained micro-feedback: confirm the set was registered
   // before the screen advances. No intermediate screen — just the primary
-  // button itself, for ~350ms, then the correct next step runs: rest only
-  // if another set of this same exercise remains; otherwise the exercise
-  // (or the whole workout) advances directly, with no rest in between.
+  // button itself, for ~400ms, then the correct next step runs: rest only
+  // if another set of this same exercise remains; otherwise a brief
+  // transition into the "exercise finished" state (see
+  // playExerciseFinishedTransition), where the user presses
+  // "Siguiente ejercicio"/"Finalizar entrenamiento" themselves.
   function showSetCompletedFeedback(){
     const btn = document.getElementById('wkPrimaryBtn');
     btn.disabled = true;
@@ -2001,7 +2024,7 @@
     setTimeout(() => {
       btn.classList.remove('primary-btn-confirm');
       advanceAfterSetCompleted();
-    }, 360);
+    }, 400);
   }
 
   // Decides what happens right after the "Serie completada" confirmation.
@@ -2015,14 +2038,28 @@
       renderWorkout();
       return;
     }
-    // this exercise is fully done — skip rest entirely
-    if(exIndex === workout.length - 1){
-      const summary = logCompletedWorkout();
-      showWorkoutSummary(summary);
-      return;
-    }
-    exIndex++;
-    renderWorkout();
+    // This exercise is fully done — no rest, but the "exercise finished"
+    // state (Siguiente ejercicio / Finalizar entrenamiento, same allDone
+    // branch renderWorkout() already renders) gets a brief, subtle
+    // transition on arrival. Advancing exIndex or finishing the workout
+    // still only happens when that button is pressed — untouched below.
+    playExerciseFinishedTransition();
+  }
+
+  // ~240ms total: fade+shift the current exercise content out, swap to the
+  // finished-state render, fade+shift it back in. Purely visual — never
+  // triggered by pressing "Siguiente ejercicio"/"Finalizar entrenamiento"
+  // themselves, only by arriving here automatically after the last set.
+  function playExerciseFinishedTransition(){
+    const content = document.getElementById('wkExerciseContent');
+    content.classList.remove('wk-fade-in');
+    content.classList.add('wk-fade-out');
+    setTimeout(() => {
+      renderWorkout();
+      content.classList.remove('wk-fade-out');
+      void content.offsetWidth; // restart the fade-in animation cleanly every time
+      content.classList.add('wk-fade-in');
+    }, 100);
   }
 
   // ---------- Rest component: independent state, driven for real ----------
