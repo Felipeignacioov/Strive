@@ -598,6 +598,9 @@
     transition:transform 0.32s cubic-bezier(.32,.72,0,1);
     z-index:100;
     padding:calc(env(safe-area-inset-top, 14px) + 10px) 20px 0 20px;
+    overflow-y:auto; /* safety net: on very small screens the primary button
+      scrolls into view instead of being clipped — never fully hidden */
+    min-height:0;
   }
   .workout-overlay.open{transform:translateY(0);}
   .workout-header{display:flex;align-items:flex-start;justify-content:space-between;}
@@ -1960,7 +1963,11 @@
     // for any set state (not_started/in_progress/finished), same as the
     // exercise name/meta above it. Lives inside #wkExerciseContent, so it
     // already fades with the rest of the content when the exercise changes.
-    const demo = getDemoImagesForExerciseName(ex.name);
+    // Hidden while resting: that's the screen's most crowded moment (rest
+    // circle + controls also visible), and this is exactly the vertical
+    // space that needs protecting so the primary button is never pushed
+    // out of view.
+    const demo = restRemaining === null ? getDemoImagesForExerciseName(ex.name) : null;
     const demoEl = document.getElementById('wkDemoImages');
     if(demo){
       demoEl.style.display = 'flex';
