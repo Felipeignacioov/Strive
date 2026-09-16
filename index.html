@@ -10,7 +10,7 @@
 <!-- Strive Exercise Library — imported from RepDB (see exercise-library.js header).
      Loaded as a plain script tag (not fetch) so this keeps working when the
      app is opened directly as a file, with no local server involved. -->
-<script src="exercise-library.js"></script>
+<script src="exercise-library.js?v=demo-images-1"></script>
 <style>
   :root{
     --bg:#0B0B0F;
@@ -562,7 +562,7 @@
      red stays reserved for the primary action per Strive's identity rule. */
   .wk-demo-images{display:flex;gap:10px;margin-top:14px;}
   .wk-demo-img-wrap{
-    flex:1;aspect-ratio:4/3;border-radius:18px;overflow:hidden;
+    flex:1;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
     background:var(--surface-high);border:1px solid var(--border);
   }
   .wk-demo-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -1959,15 +1959,12 @@
     weightInput.dataset.setIndex = focusIdx;
     repsInput.dataset.setIndex = focusIdx;
 
-    // Demo images (A -> B) for the exercise currently on screen — shown
-    // for any set state (not_started/in_progress/finished), same as the
-    // exercise name/meta above it. Lives inside #wkExerciseContent, so it
-    // already fades with the rest of the content when the exercise changes.
-    // Hidden while resting: that's the screen's most crowded moment (rest
-    // circle + controls also visible), and this is exactly the vertical
-    // space that needs protecting so the primary button is never pushed
-    // out of view.
-    const demo = restRemaining === null ? getDemoImagesForExerciseName(ex.name) : null;
+    // Demo images (A -> B) for the exercise currently on screen — visible
+    // for the entire time this exercise is active, INCLUDING during rest.
+    // Compensated with a shorter aspect ratio (see .wk-demo-img-wrap) so
+    // it still coexists with the rest circle without pushing the primary
+    // button out of view.
+    const demo = getDemoImagesForExerciseName(ex.name);
     const demoEl = document.getElementById('wkDemoImages');
     if(demo){
       demoEl.style.display = 'flex';
@@ -2585,6 +2582,12 @@
     if(!details || !details.imageStart || !details.imageEnd) return null;
     return details;
   }
+
+  // Verifiable build marker — open the browser console on the deployed
+  // site and confirm this line actually prints. If it doesn't appear, the
+  // browser/host is serving an older build, not the one in this file, and
+  // no code change here will fix that until the deploy/cache is refreshed.
+  console.log('[Strive] workout demo-images build loaded — mapped exercises:', Object.keys(LEGACY_EXERCISE_IMAGE_MAP).length);
 
   // ---------- Routine preview: "Ver rutina" ≠ "Entrenar rutina" ----------
   // Tapping any routine in "Mis rutinas" opens this first. It only ever
