@@ -559,13 +559,20 @@
   /* Active-workout demo images (A -> B) — same frame language as the
      "Ver ejercicio" sheet's images (same radius, same neutral border/bg),
      just sized to sit under the weight/reps card. No red here on purpose —
-     red stays reserved for the primary action per Strive's identity rule. */
-  .wk-demo-images{display:flex;gap:10px;margin-top:14px;}
+     red stays reserved for the primary action per Strive's identity rule.
+     Container ratio matches RepDB's real image dimensions (512x512, 1:1)
+     — not an arbitrary panoramic box. That's what actually eliminates the
+     crop: with cover, a square photo forced into a wide/short box loses
+     head/feet no matter what. contain is kept as a safety net in case any
+     source image isn't perfectly square, but with matching ratios there's
+     no visible letterboxing in the normal case. */
+  .wk-demo-images{display:flex;gap:10px;margin-top:18px;}
   .wk-demo-img-wrap{
-    flex:1;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    flex:1;aspect-ratio:1/1;border-radius:16px;overflow:hidden;
     background:var(--surface-high);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
   }
-  .wk-demo-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .wk-demo-img-wrap img{width:100%;height:100%;object-fit:contain;display:block;}
   .wk-last-time{display:flex;align-items:center;gap:6px;margin-top:14px;padding:0 4px;}
   .wk-last-time svg{width:12px;height:12px;color:var(--text-tertiary);}
   .wk-last-time-label{font-family:var(--font-body);font-weight:600;font-size:12px;color:var(--text-tertiary);}
