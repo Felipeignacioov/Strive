@@ -566,7 +566,17 @@
      head/feet no matter what. contain is kept as a safety net in case any
      source image isn't perfectly square, but with matching ratios there's
      no visible letterboxing in the normal case. */
-  .wk-demo-images{display:flex;gap:10px;margin-top:18px;}
+  .wk-demo-images{
+    display:flex;gap:10px;margin-top:18px;overflow:hidden;
+    max-height:320px;opacity:1;
+    transition:max-height 0.24s ease,opacity 0.18s ease,margin-top 0.24s ease;
+  }
+  /* Collapsed during rest — same block, same images/sizing underneath,
+     just visibility + the space it occupies. Reappears exactly as it was
+     the moment restRemaining goes back to null. */
+  .wk-demo-images.wk-demo-hidden{
+    max-height:0;opacity:0;margin-top:0;pointer-events:none;
+  }
   .wk-demo-img-wrap{
     flex:1;aspect-ratio:1/1;border-radius:16px;overflow:hidden;
     background:var(--surface-high);border:1px solid var(--border);
@@ -849,6 +859,40 @@
   }
   .exercise-card.selected .exercise-check{background:var(--accent-bright);border-color:var(--accent-bright);}
   .exercise-check svg{width:11px;height:11px;color:#fff;}
+
+  /* ---------- Añadir ejercicios: group filter pills ---------- */
+  .ex-filter-scroll{
+    display:flex;gap:8px;overflow-x:auto;margin-bottom:18px;
+    scrollbar-width:none;
+  }
+  .ex-filter-scroll::-webkit-scrollbar{display:none;}
+  .ex-filter-pill{
+    flex-shrink:0;padding:8px 14px;border-radius:999px;cursor:pointer;
+    background:var(--surface-high);border:1px solid var(--border-light);
+    font-family:var(--font-body);font-weight:600;font-size:13px;color:var(--text-secondary);
+    white-space:nowrap;
+  }
+  .ex-filter-pill.selected{
+    background:var(--accent-soft);border-color:var(--accent-soft-border);color:var(--accent-bright);
+  }
+
+  /* ---------- Añadir ejercicios: no results ---------- */
+  .ex-empty-state{text-align:center;padding:48px 20px;}
+  .ex-empty-title{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--text-primary);margin-bottom:6px;}
+  .ex-empty-sub{font-family:var(--font-body);font-size:13.5px;color:var(--text-secondary);}
+
+  /* ---------- Crear mi rutina: selected-exercises summary ---------- */
+  .exercise-summary-empty{
+    font-family:var(--font-body);font-size:13.5px;color:var(--text-tertiary);
+    padding:10px 0 18px 0;
+  }
+  .exercise-summary-row{
+    display:flex;align-items:center;gap:12px;padding:9px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .exercise-summary-row:last-child{border-bottom:none;padding-bottom:18px;}
+  .exercise-summary-row .exercise-card-icon{margin-bottom:0;}
+  .exercise-summary-name{font-family:var(--font-body);font-weight:500;font-size:14.5px;color:var(--text-primary);}
 
   .routine-name-input{
     width:100%;height:48px;border-radius:14px;
@@ -1358,7 +1402,7 @@
         </div>
       </div>
 
-      <div class="wk-demo-images" id="wkDemoImages" style="display:none">
+      <div class="wk-demo-images wk-demo-hidden" id="wkDemoImages">
         <div class="wk-demo-img-wrap"><img id="wkDemoImgA" src="" alt="" loading="lazy" /></div>
         <div class="wk-demo-img-wrap"><img id="wkDemoImgB" src="" alt="" loading="lazy" /></div>
       </div>
@@ -1395,7 +1439,7 @@
     <div class="sheet-handle"></div>
     <div class="sheet-title">Crear rutina</div>
 
-    <div class="sheet-option" onclick="openExercisePicker()">
+    <div class="sheet-option" onclick="openCreateRoutineScreen()">
       <div class="sheet-option-icon"><i data-feather="edit-3"></i></div>
       <div>
         <div class="sheet-option-title">Crear mi rutina</div>
@@ -1414,31 +1458,75 @@
     <button class="sheet-cancel" onclick="closeCreateSheet()">Cancelar</button>
   </div>
 
-  <!-- ============ CREATE MY ROUTINE: EXERCISE PICKER ============ -->
-  <div class="flow-overlay" id="exercisePickerScreen">
+  <!-- ============ CREATE MY ROUTINE — STEP 1: CONFIGURE ROUTINE ============ -->
+  <!-- Only routine setup lives here: name, icon, and a summary of whatever
+       exercises are currently selected. The full catalog never appears on
+       this screen — that's "Añadir ejercicios" below, a separate state. -->
+  <div class="flow-overlay" id="createRoutineScreen">
     <div class="flow-header">
       <div>
-        <div class="flow-title">Elige tus ejercicios</div>
-        <div class="flow-subtitle">Organizados por grupo muscular. Tócalos para añadirlos.</div>
+        <div class="flow-title">Crear mi rutina</div>
+        <div class="flow-subtitle">Configura el nombre, el icono y los ejercicios.</div>
       </div>
-      <button class="close-btn" onclick="closeExercisePicker()"><i data-feather="x"></i></button>
+      <button class="close-btn" onclick="closeCreateRoutineScreen()"><i data-feather="x"></i></button>
     </div>
 
-    <div class="flow-body" id="exercisePickerBody"></div>
+    <div class="flow-body">
+      <div class="form-label">Nombre de tu rutina</div>
+      <input type="text" class="form-input" id="routineNameInput" placeholder="Nombre de tu rutina" />
 
-    <div class="flow-footer">
-      <input type="text" class="routine-name-input" id="routineNameInput" placeholder="Nombre de tu rutina" />
-
+      <div class="form-label">Icono de tu rutina</div>
       <button class="icon-picker-row" onclick="toggleCreateIconPicker()">
         <div class="routine-icon" id="createIconPreview"><i data-feather="target"></i></div>
-        <span class="icon-picker-label">Icono de tu rutina</span>
+        <span class="icon-picker-label">Toca para cambiar</span>
         <i data-feather="chevron-right" class="chev"></i>
       </button>
       <div id="createIconPickerGrid" class="icon-picker-grid" style="display:none;"></div>
 
-      <div class="flow-footer-meta"><b id="selectedCountLabel">0</b> ejercicios seleccionados</div>
+      <div class="section-header" style="margin-top:10px;">
+        <span class="section-title" style="font-size:17px;">Ejercicios</span>
+        <span class="section-action" id="routineConfigCountLabel">0 ejercicios seleccionados</span>
+      </div>
+      <div id="routineConfigExerciseSummary"></div>
+
+      <button class="flow-secondary-btn" onclick="openAddExercisesScreen()">
+        <i data-feather="plus"></i> Añadir ejercicios
+      </button>
+    </div>
+
+    <div class="flow-footer">
       <button class="flow-primary-btn" id="createRoutineBtn" onclick="saveCustomRoutine()" disabled>
         Crear rutina <i data-feather="arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ CREATE MY ROUTINE — STEP 2: ADD EXERCISES ============ -->
+  <!-- Opens "on top" of createRoutineScreen (both stay mounted, same
+       pattern as editRoutineScreen over routineDetailScreen) — closing it
+       naturally reveals the (now-refreshed) config screen underneath.
+       Selection lives in the same shared `selectedExerciseIds` the config
+       screen reads from, so nothing needs to be "handed back" on close —
+       it was never a separate copy. Uses the exact same catalog, cards,
+       and image system as before; only search + group filtering is new. -->
+  <div class="flow-overlay" id="exercisePickerScreen" style="z-index:145;">
+    <div class="flow-header">
+      <div>
+        <div class="flow-title">Añadir ejercicios</div>
+        <div class="flow-subtitle">Busca y selecciona los ejercicios para tu rutina.</div>
+      </div>
+      <button class="close-btn" onclick="closeAddExercisesScreen()"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="flow-body">
+      <input type="text" class="form-input" id="exerciseSearchInput" placeholder="Buscar ejercicio..." oninput="onExerciseSearchInput(this.value)" style="margin-bottom:14px;" />
+      <div class="ex-filter-scroll" id="exerciseFilterPills"></div>
+      <div id="exercisePickerBody"></div>
+    </div>
+
+    <div class="flow-footer">
+      <button class="flow-primary-btn" id="addExercisesBtn" onclick="confirmAddExercises()" disabled>
+        Selecciona ejercicios
       </button>
     </div>
   </div>
@@ -1966,21 +2054,24 @@
     weightInput.dataset.setIndex = focusIdx;
     repsInput.dataset.setIndex = focusIdx;
 
-    // Demo images (A -> B) for the exercise currently on screen — visible
-    // for the entire time this exercise is active, INCLUDING during rest.
-    // Compensated with a shorter aspect ratio (see .wk-demo-img-wrap) so
-    // it still coexists with the rest circle without pushing the primary
-    // button out of view.
+    // Demo images (A -> B) for the exercise currently on screen. Visible
+    // before starting a set and while the set is in progress; collapsed
+    // (not just shrunk) during rest so the rest block gets the vertical
+    // space and rises up — then reappears exactly as-is once rest ends.
+    // The src attributes are updated regardless of visibility so that when
+    // the block reappears (or a new exercise loads while still resting,
+    // e.g. via the "Siguiente ejercicio" auto-transition) it's already
+    // showing the correct images, never a stale frame.
     const demo = getDemoImagesForExerciseName(ex.name);
     const demoEl = document.getElementById('wkDemoImages');
     if(demo){
-      demoEl.style.display = 'flex';
       document.getElementById('wkDemoImgA').src = demo.imageStart;
       document.getElementById('wkDemoImgA').alt = ex.name + ' — posición A';
       document.getElementById('wkDemoImgB').src = demo.imageEnd;
       document.getElementById('wkDemoImgB').alt = ex.name + ' — posición B';
+      demoEl.classList.toggle('wk-demo-hidden', restRemaining !== null);
     } else {
-      demoEl.style.display = 'none';
+      demoEl.classList.add('wk-demo-hidden');
     }
 
     // "Última vez": real last logged session for this exercise, from workoutLogs.
@@ -3023,12 +3114,23 @@
     document.getElementById('createSheet').classList.remove('open');
   }
 
-  // ---------- Flow 1: "Crear mi rutina" — manual exercise picker ----------
+  // ================================================================
+  // "Crear mi rutina" — now two separate states sharing one draft:
+  //   1) createRoutineScreen: name, icon, and a summary of the selection.
+  //   2) exercisePickerScreen ("Añadir ejercicios"): search + filter +
+  //      the catalog grid, opened on top of (1).
+  // selectedExerciseIds is the single source of truth for the selection —
+  // screen 2 mutates it directly and screen 1 just reads it, so nothing
+  // has to be "handed back" when the user returns; it was never copied.
+  // ================================================================
   let selectedExerciseIds = new Set();
   let customRoutineIcon = DEFAULT_ROUTINE_ICON;
   let createIconPickerOpen = false;
+  let exerciseSearchQuery = '';
+  let exerciseFilterGroup = 'all';
 
-  function openExercisePicker(){
+  // ---------- Screen 1: configure the routine ----------
+  function openCreateRoutineScreen(){
     closeCreateSheet();
     selectedExerciseIds = new Set();
     document.getElementById('routineNameInput').value = '';
@@ -3036,12 +3138,38 @@
     createIconPickerOpen = false;
     document.getElementById('createIconPreview').innerHTML = routineIconSvg(customRoutineIcon);
     document.getElementById('createIconPickerGrid').style.display = 'none';
-    renderExercisePicker();
-    document.getElementById('exercisePickerScreen').classList.add('open');
+    renderRoutineConfigSummary();
+    document.getElementById('createRoutineScreen').classList.add('open');
     feather.replace();
   }
-  function closeExercisePicker(){
-    document.getElementById('exercisePickerScreen').classList.remove('open');
+  function closeCreateRoutineScreen(){
+    document.getElementById('createRoutineScreen').classList.remove('open');
+  }
+
+  // Paints the "Ejercicios" section on screen 1: count label + a compact
+  // read-only list of whatever is currently selected (reuses the same
+  // card-icon helper used by the catalog grid, so a thumbnail shows here
+  // too whenever the exercise has one). Called on open and every time the
+  // user comes back from "Añadir ejercicios".
+  function renderRoutineConfigSummary(){
+    const count = selectedExerciseIds.size;
+    document.getElementById('routineConfigCountLabel').textContent =
+      count === 0 ? '0 ejercicios seleccionados'
+      : count + (count === 1 ? ' ejercicio seleccionado' : ' ejercicios seleccionados');
+
+    const summaryEl = document.getElementById('routineConfigExerciseSummary');
+    if(count === 0){
+      summaryEl.innerHTML = '<div class="exercise-summary-empty">Aún no has añadido ejercicios.</div>';
+    } else {
+      summaryEl.innerHTML = Array.from(selectedExerciseIds).map(id => {
+        const ex = EXERCISE_DETAILS_BY_ID[id];
+        if(!ex) return '';
+        return '<div class="exercise-summary-row">' + exerciseCardIconHtml(ex, ex.groupIcon) +
+          '<span class="exercise-summary-name">' + ex.name + '</span></div>';
+      }).join('');
+    }
+    document.getElementById('createRoutineBtn').disabled = count === 0;
+    feather.replace();
   }
 
   // Same 12-icon set and same interaction as "Editar rutina" — one picker
@@ -3071,27 +3199,97 @@
     feather.replace();
   }
 
+  // ---------- Screen 2: "Añadir ejercicios" — search + filter + select ----------
+  function openAddExercisesScreen(){
+    exerciseSearchQuery = '';
+    exerciseFilterGroup = 'all';
+    document.getElementById('exerciseSearchInput').value = '';
+    renderExerciseFilterPills();
+    renderExercisePicker();
+    document.getElementById('exercisePickerScreen').classList.add('open');
+    feather.replace();
+  }
+
+  // Closing always refreshes screen 1's summary underneath — the only
+  // path back to it being visible, so this is the one place that needs to.
+  function closeAddExercisesScreen(){
+    document.getElementById('exercisePickerScreen').classList.remove('open');
+    renderRoutineConfigSummary();
+  }
+
+  // The footer CTA and the header "x" do the exact same thing here: the
+  // selection already lives in the shared set the moment a card is
+  // tapped, so there's nothing to "confirm" beyond going back.
+  function confirmAddExercises(){
+    closeAddExercisesScreen();
+  }
+
+  // Case-and-accent-insensitive: "press banca" and "PRESS BANCA" and
+  // "còrê" (typo-tolerant only for accents) all normalize the same way.
+  function normalizeSearchText(s){
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  function getFilteredCatalogGroups(){
+    const q = normalizeSearchText(exerciseSearchQuery);
+    return CATALOG_GROUPS
+      .filter(g => exerciseFilterGroup === 'all' || g.key === exerciseFilterGroup)
+      .map(g => ({ ...g, exercises: g.exercises.filter(ex => !q || normalizeSearchText(ex.name).includes(q)) }))
+      .filter(g => g.exercises.length > 0);
+  }
+
+  function renderExerciseFilterPills(){
+    const pillsEl = document.getElementById('exerciseFilterPills');
+    const allPill = '<button class="ex-filter-pill' + (exerciseFilterGroup === 'all' ? ' selected' : '') + '" onclick="setExerciseFilterGroup(\'all\')">Todos</button>';
+    const groupPills = CATALOG_GROUPS.map(g => (
+      '<button class="ex-filter-pill' + (exerciseFilterGroup === g.key ? ' selected' : '') + '" onclick="setExerciseFilterGroup(\'' + g.key + '\')">' +
+        g.label.charAt(0) + g.label.slice(1).toLowerCase() +
+      '</button>'
+    )).join('');
+    pillsEl.innerHTML = allPill + groupPills;
+  }
+
+  function setExerciseFilterGroup(key){
+    exerciseFilterGroup = key;
+    renderExerciseFilterPills();
+    renderExercisePicker();
+  }
+
+  function onExerciseSearchInput(value){
+    exerciseSearchQuery = value;
+    renderExercisePicker();
+  }
+
   function renderExercisePicker(){
     const body = document.getElementById('exercisePickerBody');
-    body.innerHTML = CATALOG_GROUPS.map(group => {
-      const cards = group.exercises.map(ex => {
-        const isSelected = selectedExerciseIds.has(ex.id);
+    const groups = getFilteredCatalogGroups();
+    if(groups.length === 0){
+      body.innerHTML =
+        '<div class="ex-empty-state">' +
+          '<div class="ex-empty-title">No encontramos ejercicios</div>' +
+          '<div class="ex-empty-sub">Prueba con otro nombre o grupo muscular.</div>' +
+        '</div>';
+    } else {
+      body.innerHTML = groups.map(group => {
+        const cards = group.exercises.map(ex => {
+          const isSelected = selectedExerciseIds.has(ex.id);
+          return (
+            '<div class="exercise-card' + (isSelected ? ' selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
+              exerciseCardIconHtml(ex, group.icon) +
+              '<div class="exercise-card-name">' + ex.name + '</div>' +
+              '<div class="exercise-check">' + (isSelected ? '<i data-feather="check"></i>' : '') + '</div>' +
+            '</div>'
+          );
+        }).join('');
         return (
-          '<div class="exercise-card' + (isSelected ? ' selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
-            exerciseCardIconHtml(ex, group.icon) +
-            '<div class="exercise-card-name">' + ex.name + '</div>' +
-            '<div class="exercise-check">' + (isSelected ? '<i data-feather="check"></i>' : '') + '</div>' +
+          '<div class="muscle-section">' +
+            '<div class="muscle-section-title">' + group.label + '</div>' +
+            '<div class="exercise-grid">' + cards + '</div>' +
           '</div>'
         );
       }).join('');
-      return (
-        '<div class="muscle-section">' +
-          '<div class="muscle-section-title">' + group.label + '</div>' +
-          '<div class="exercise-grid">' + cards + '</div>' +
-        '</div>'
-      );
-    }).join('');
-    updateExercisePickerFooter();
+    }
+    updateAddExercisesFooter();
     feather.replace();
   }
 
@@ -3101,10 +3299,11 @@
     renderExercisePicker();
   }
 
-  function updateExercisePickerFooter(){
+  function updateAddExercisesFooter(){
     const count = selectedExerciseIds.size;
-    document.getElementById('selectedCountLabel').textContent = count;
-    document.getElementById('createRoutineBtn').disabled = count === 0;
+    const btn = document.getElementById('addExercisesBtn');
+    btn.disabled = count === 0;
+    btn.textContent = count === 0 ? 'Selecciona ejercicios' : 'Añadir ' + count + (count === 1 ? ' ejercicio' : ' ejercicios');
   }
 
   function saveCustomRoutine(){
@@ -3126,7 +3325,7 @@
 
     routines.push({ id, name, exerciseCount, estimatedMinutes, lastPerformed:null, icon:customRoutineIcon, exercises });
 
-    closeExercisePicker();
+    closeCreateRoutineScreen();
     showTab('rutinas');
     renderRoutinesList(id);
     showSuccessToast('Rutina "' + name + '" creada');
