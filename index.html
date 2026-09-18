@@ -949,6 +949,24 @@
     border:none;padding:0;cursor:pointer;background:var(--surface-high);
   }
   .routine-ex-demo-btn img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* Drag handle for reordering exercises directly in the routine detail
+     screen. touch-action:none is what actually makes this work on a
+     touchscreen — without it, the browser starts scrolling the list the
+     moment a finger moves, before our own drag logic ever sees the
+     gesture. cursor:grab is a desktop-only affordance; harmless on mobile. */
+  .routine-ex-handle{
+    width:32px;height:32px;border-radius:9px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-tertiary);cursor:grab;touch-action:none;
+  }
+  .routine-ex-handle svg{width:16px;height:16px;}
+  .routine-ex-row{transition:transform 0.15s ease;}
+  .routine-ex-row.dragging{
+    position:relative;z-index:10;transition:none;
+    background:var(--surface-high);border-radius:14px;
+    box-shadow:0 14px 28px -10px rgba(0,0,0,0.55);
+    opacity:0.97;
+  }
   .routine-ex-weight-btn{
     font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--text-primary);
     background:var(--surface-high);padding:5px 10px;border-radius:9px;flex-shrink:0;
@@ -2753,7 +2771,13 @@
         ? '<button class="routine-ex-demo-btn" onclick="openExerciseDemo(\'' + catalogEx.id + '\')" title="Ver ejercicio"><img src="' + catalogEx.imageStart + '" alt="" loading="lazy" /></button>'
         : '';
 
-      return '<div class="routine-ex-row"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + demoHtml + weightHtml + '</div>';
+      // Drag handle — the only part of the row that starts a reorder, so
+      // tapping the demo thumbnail or the weight button never triggers one.
+      // touch-action:none on the handle is what stops the browser's own
+      // scroll gesture from hijacking the touch before our drag can start.
+      const handleHtml = '<div class="routine-ex-handle" onpointerdown="startDragReorder(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>';
+
+      return '<div class="routine-ex-row" data-index="' + i + '"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + demoHtml + weightHtml + handleHtml + '</div>';
     }).join('');
 
     feather.replace();
@@ -2787,6 +2811,94 @@
 
   function closeRoutineDetail(){
     document.getElementById('routineDetailScreen').classList.remove('open');
+  }
+
+  // ================================================================
+  // Reorder exercises — drag handle in the routine detail screen.
+  //
+  // moveRoutineExercise() is the one function that actually mutates the
+  // order and is fully independent of touch/pointer mechanics: it's what
+  // gets called once a drag ends (or could equally be called from any
+  // other UI later). It writes straight into the same `routines` array
+  // everything else already reads from — no new storage, no parallel
+  // "draft order" to keep in sync. startWorkoutFromRoutine() already maps
+  // routine.exercises in array order, so reordering here is automatically
+  // what the workout starts with — nothing there needed to change.
+  // ================================================================
+  let dragReorderState = null;
+
+  function moveRoutineExercise(routineId, fromIndex, toIndex){
+    const routine = routines.find(r => r.id === routineId);
+    if(!routine || !routine.exercises) return;
+    if(fromIndex < 0 || fromIndex >= routine.exercises.length) return;
+    toIndex = Math.max(0, Math.min(routine.exercises.length - 1, toIndex));
+    if(fromIndex === toIndex) return;
+    const [moved] = routine.exercises.splice(fromIndex, 1);
+    routine.exercises.splice(toIndex, 0, moved);
+    editingWeightIndex = null; // stale row index after a reorder — never leave the wrong row mid-edit
+    renderRoutineDetailBody();
+  }
+
+  // Picked up only from the handle (never the row itself), so tapping the
+  // demo thumbnail or the weight button is never mistaken for a drag.
+  // touch-action:none on the handle (see CSS) is what stops the page from
+  // scrolling underneath the gesture on a real touchscreen.
+  function startDragReorder(evt, index){
+    evt.preventDefault();
+    const rows = Array.from(document.querySelectorAll('#routineDetailBody .routine-ex-row'));
+    const row = rows[index];
+    if(!row) return;
+
+    dragReorderState = {
+      fromIndex: index,
+      currentIndex: index,
+      startY: evt.clientY,
+      rowHeight: row.getBoundingClientRect().height || 60,
+      rows,
+    };
+    row.classList.add('dragging');
+    row.setPointerCapture(evt.pointerId);
+    row.addEventListener('pointermove', onDragReorderMove);
+    row.addEventListener('pointerup', onDragReorderEnd);
+    row.addEventListener('pointercancel', onDragReorderEnd);
+  }
+
+  function onDragReorderMove(evt){
+    if(!dragReorderState) return;
+    const s = dragReorderState;
+    const deltaY = evt.clientY - s.startY;
+    s.rows[s.fromIndex].style.transform = 'translateY(' + deltaY + 'px)';
+
+    const slotsMoved = Math.round(deltaY / s.rowHeight);
+    const newIndex = Math.max(0, Math.min(s.rows.length - 1, s.fromIndex + slotsMoved));
+    if(newIndex === s.currentIndex) return;
+    s.currentIndex = newIndex;
+
+    // Visually preview the reorder by shifting the *other* rows out of the
+    // dragged row's way — the actual array isn't touched until drop.
+    s.rows.forEach((r, i) => {
+      if(i === s.fromIndex) return;
+      if(i > s.fromIndex && i <= newIndex) r.style.transform = 'translateY(-' + s.rowHeight + 'px)';
+      else if(i < s.fromIndex && i >= newIndex) r.style.transform = 'translateY(' + s.rowHeight + 'px)';
+      else r.style.transform = '';
+    });
+  }
+
+  function onDragReorderEnd(evt){
+    if(!dragReorderState) return;
+    const s = dragReorderState;
+    const row = s.rows[s.fromIndex];
+    row.classList.remove('dragging');
+    row.removeEventListener('pointermove', onDragReorderMove);
+    row.removeEventListener('pointerup', onDragReorderEnd);
+    row.removeEventListener('pointercancel', onDragReorderEnd);
+    s.rows.forEach(r => { r.style.transform = ''; });
+
+    const finalIndex = s.currentIndex;
+    dragReorderState = null;
+    if(finalIndex !== s.fromIndex){
+      moveRoutineExercise(currentPreviewRoutineId, s.fromIndex, finalIndex);
+    }
   }
 
   // "6-10" -> 10, "8" -> 8. Falls back to a reasonable default if unparsable.
