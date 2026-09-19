@@ -882,17 +882,38 @@
   .ex-empty-sub{font-family:var(--font-body);font-size:13.5px;color:var(--text-secondary);}
 
   /* ---------- Crear mi rutina: selected-exercises summary ---------- */
+  /* Handle + name + remove — reorder and delete for the routine that's
+     still being drafted. Reuses .routine-ex-handle (same drag affordance
+     as the routine-detail screen) so there's one visual language for
+     "this row can be dragged", not two. */
   .exercise-summary-empty{
     font-family:var(--font-body);font-size:13.5px;color:var(--text-tertiary);
     padding:10px 0 18px 0;
   }
   .exercise-summary-row{
-    display:flex;align-items:center;gap:12px;padding:9px 0;
+    display:flex;align-items:center;gap:10px;padding:6px 0;
     border-bottom:1px solid var(--border);
+    transition:transform 0.15s ease;
   }
   .exercise-summary-row:last-child{border-bottom:none;padding-bottom:18px;}
-  .exercise-summary-row .exercise-card-icon{margin-bottom:0;}
-  .exercise-summary-name{font-family:var(--font-body);font-weight:500;font-size:14.5px;color:var(--text-primary);}
+  .exercise-summary-row.dragging{
+    position:relative;z-index:10;transition:none;
+    background:var(--surface-high);border-radius:14px;
+    box-shadow:0 14px 28px -10px rgba(0,0,0,0.55);
+    opacity:0.97;
+  }
+  .exercise-summary-name{
+    flex:1;min-width:0;font-family:var(--font-body);font-weight:500;
+    font-size:14.5px;color:var(--text-primary);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .exercise-summary-remove{
+    width:30px;height:30px;border-radius:9px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:transparent;border:none;cursor:pointer;color:var(--text-tertiary);
+  }
+  .exercise-summary-remove svg{width:15px;height:15px;}
+  .exercise-summary-remove:active{color:var(--danger);}
 
   .routine-name-input{
     width:100%;height:48px;border-radius:14px;
@@ -2775,7 +2796,7 @@
       // tapping the demo thumbnail or the weight button never triggers one.
       // touch-action:none on the handle is what stops the browser's own
       // scroll gesture from hijacking the touch before our drag can start.
-      const handleHtml = '<div class="routine-ex-handle" onpointerdown="startDragReorder(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>';
+      const handleHtml = '<div class="routine-ex-handle" onpointerdown="startRoutineDetailDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>';
 
       return '<div class="routine-ex-row" data-index="' + i + '"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + demoHtml + weightHtml + handleHtml + '</div>';
     }).join('');
@@ -2824,6 +2845,12 @@
   // "draft order" to keep in sync. startWorkoutFromRoutine() already maps
   // routine.exercises in array order, so reordering here is automatically
   // what the workout starts with — nothing there needed to change.
+  //
+  // The drag mechanics themselves (startDragReorder/onDragReorderMove/
+  // onDragReorderEnd) are container-agnostic on purpose: "Crear mi rutina"
+  // reuses the exact same pointer-event logic below for reordering the
+  // in-progress selection, via startSelectionDrag — one drag engine, two
+  // call sites, so the touch-handling code isn't duplicated.
   // ================================================================
   let dragReorderState = null;
 
@@ -2840,12 +2867,19 @@
   }
 
   // Picked up only from the handle (never the row itself), so tapping the
-  // demo thumbnail or the weight button is never mistaken for a drag.
-  // touch-action:none on the handle (see CSS) is what stops the page from
-  // scrolling underneath the gesture on a real touchscreen.
-  function startDragReorder(evt, index){
+  // demo thumbnail, weight button, or delete "x" is never mistaken for a
+  // drag. touch-action:none on the handle (see CSS) is what stops the page
+  // from scrolling underneath the gesture on a real touchscreen.
+  //
+  // containerSelector: which rows to treat as the reorderable list (queried
+  // fresh on every drag start, so it always matches whatever's on screen).
+  // onReorder(fromIndex, toIndex): called once, on drop, with the final
+  // indices — each screen supplies its own (see startRoutineDetailDrag /
+  // startSelectionDrag below), so this function itself never needs to know
+  // which data it's reordering.
+  function startDragReorder(evt, index, containerSelector, onReorder){
     evt.preventDefault();
-    const rows = Array.from(document.querySelectorAll('#routineDetailBody .routine-ex-row'));
+    const rows = Array.from(document.querySelectorAll(containerSelector));
     const row = rows[index];
     if(!row) return;
 
@@ -2855,6 +2889,7 @@
       startY: evt.clientY,
       rowHeight: row.getBoundingClientRect().height || 60,
       rows,
+      onReorder,
     };
     row.classList.add('dragging');
     row.setPointerCapture(evt.pointerId);
@@ -2875,7 +2910,7 @@
     s.currentIndex = newIndex;
 
     // Visually preview the reorder by shifting the *other* rows out of the
-    // dragged row's way — the actual array isn't touched until drop.
+    // dragged row's way — the actual data isn't touched until drop.
     s.rows.forEach((r, i) => {
       if(i === s.fromIndex) return;
       if(i > s.fromIndex && i <= newIndex) r.style.transform = 'translateY(-' + s.rowHeight + 'px)';
@@ -2897,8 +2932,16 @@
     const finalIndex = s.currentIndex;
     dragReorderState = null;
     if(finalIndex !== s.fromIndex){
-      moveRoutineExercise(currentPreviewRoutineId, s.fromIndex, finalIndex);
+      s.onReorder(s.fromIndex, finalIndex);
     }
+  }
+
+  // Thin, named wrapper so the inline onpointerdown attribute in the
+  // routine-detail row markup stays simple — this is the only place that
+  // knows the drag there means "reorder the saved routine's exercises".
+  function startRoutineDetailDrag(evt, index){
+    startDragReorder(evt, index, '#routineDetailBody .routine-ex-row',
+      (from, to) => moveRoutineExercise(currentPreviewRoutineId, from, to));
   }
 
   // "6-10" -> 10, "8" -> 8. Falls back to a reasonable default if unparsable.
@@ -3234,8 +3277,14 @@
   // selectedExerciseIds is the single source of truth for the selection —
   // screen 2 mutates it directly and screen 1 just reads it, so nothing
   // has to be "handed back" when the user returns; it was never copied.
+  //
+  // This is an ORDERED ARRAY, not a Set: the order the user arranges here
+  // is real routine state (it becomes routine.exercises' initial order in
+  // saveCustomRoutine), not just a visual list. Membership checks use
+  // indexOf/includes instead of .has(), which also naturally prevents
+  // duplicates — pushing only happens when an id isn't already present.
   // ================================================================
-  let selectedExerciseIds = new Set();
+  let selectedExerciseIds = [];
   let customRoutineIcon = DEFAULT_ROUTINE_ICON;
   let createIconPickerOpen = false;
   let exerciseSearchQuery = '';
@@ -3244,7 +3293,7 @@
   // ---------- Screen 1: configure the routine ----------
   function openCreateRoutineScreen(){
     closeCreateSheet();
-    selectedExerciseIds = new Set();
+    selectedExerciseIds = [];
     document.getElementById('routineNameInput').value = '';
     customRoutineIcon = DEFAULT_ROUTINE_ICON;
     createIconPickerOpen = false;
@@ -3258,13 +3307,12 @@
     document.getElementById('createRoutineScreen').classList.remove('open');
   }
 
-  // Paints the "Ejercicios" section on screen 1: count label + a compact
-  // read-only list of whatever is currently selected (reuses the same
-  // card-icon helper used by the catalog grid, so a thumbnail shows here
-  // too whenever the exercise has one). Called on open and every time the
-  // user comes back from "Añadir ejercicios".
+  // Paints the "Ejercicios" section on screen 1: count label + the actual
+  // manageable list — drag handle, name, remove "x" per row. Called on
+  // open, after adding/removing/reordering, and every time the user comes
+  // back from "Añadir ejercicios".
   function renderRoutineConfigSummary(){
-    const count = selectedExerciseIds.size;
+    const count = selectedExerciseIds.length;
     document.getElementById('routineConfigCountLabel').textContent =
       count === 0 ? '0 ejercicios seleccionados'
       : count + (count === 1 ? ' ejercicio seleccionado' : ' ejercicios seleccionados');
@@ -3273,15 +3321,44 @@
     if(count === 0){
       summaryEl.innerHTML = '<div class="exercise-summary-empty">Aún no has añadido ejercicios.</div>';
     } else {
-      summaryEl.innerHTML = Array.from(selectedExerciseIds).map(id => {
+      summaryEl.innerHTML = selectedExerciseIds.map((id, i) => {
         const ex = EXERCISE_DETAILS_BY_ID[id];
         if(!ex) return '';
-        return '<div class="exercise-summary-row">' + exerciseCardIconHtml(ex, ex.groupIcon) +
-          '<span class="exercise-summary-name">' + ex.name + '</span></div>';
+        return (
+          '<div class="exercise-summary-row">' +
+            '<div class="routine-ex-handle" onpointerdown="startSelectionDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>' +
+            '<span class="exercise-summary-name">' + ex.name + '</span>' +
+            '<button class="exercise-summary-remove" onclick="removeSelectedExercise(' + i + ')" title="Quitar ejercicio"><i data-feather="x"></i></button>' +
+          '</div>'
+        );
       }).join('');
     }
     document.getElementById('createRoutineBtn').disabled = count === 0;
     feather.replace();
+  }
+
+  // Reuses the same generic drag engine as the routine-detail screen (see
+  // startDragReorder above) — just points it at this screen's rows and its
+  // own reorder callback.
+  function startSelectionDrag(evt, index){
+    startDragReorder(evt, index, '#routineConfigExerciseSummary .exercise-summary-row', moveSelectedExercise);
+  }
+
+  function moveSelectedExercise(fromIndex, toIndex){
+    if(fromIndex < 0 || fromIndex >= selectedExerciseIds.length) return;
+    toIndex = Math.max(0, Math.min(selectedExerciseIds.length - 1, toIndex));
+    if(fromIndex === toIndex) return;
+    const [moved] = selectedExerciseIds.splice(fromIndex, 1);
+    selectedExerciseIds.splice(toIndex, 0, moved);
+    renderRoutineConfigSummary();
+  }
+
+  // Instant, no confirmation dialog — matches the "sencilla y rápida"
+  // requirement. Only touches the draft selection array; the exercise
+  // itself is untouched in the catalog and in any other routine.
+  function removeSelectedExercise(index){
+    selectedExerciseIds.splice(index, 1);
+    renderRoutineConfigSummary();
   }
 
   // Same 12-icon set and same interaction as "Editar rutina" — one picker
@@ -3384,7 +3461,7 @@
     } else {
       body.innerHTML = groups.map(group => {
         const cards = group.exercises.map(ex => {
-          const isSelected = selectedExerciseIds.has(ex.id);
+          const isSelected = selectedExerciseIds.includes(ex.id);
           return (
             '<div class="exercise-card' + (isSelected ? ' selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
               exerciseCardIconHtml(ex, group.icon) +
@@ -3405,26 +3482,34 @@
     feather.replace();
   }
 
+  // Appends only if not already present — this is what actually prevents
+  // duplicates (an id can never end up twice in the array), and a newly
+  // selected exercise joins at the end of the current order, which is
+  // then further adjustable via drag on the config screen.
   function toggleExercise(id){
-    if(selectedExerciseIds.has(id)) selectedExerciseIds.delete(id);
-    else selectedExerciseIds.add(id);
+    const idx = selectedExerciseIds.indexOf(id);
+    if(idx !== -1) selectedExerciseIds.splice(idx, 1);
+    else selectedExerciseIds.push(id);
     renderExercisePicker();
   }
 
   function updateAddExercisesFooter(){
-    const count = selectedExerciseIds.size;
+    const count = selectedExerciseIds.length;
     const btn = document.getElementById('addExercisesBtn');
     btn.disabled = count === 0;
     btn.textContent = count === 0 ? 'Selecciona ejercicios' : 'Añadir ' + count + (count === 1 ? ' ejercicio' : ' ejercicios');
   }
 
   function saveCustomRoutine(){
-    if(selectedExerciseIds.size === 0) return;
+    if(selectedExerciseIds.length === 0) return;
     const typedName = document.getElementById('routineNameInput').value.trim();
     const name = typedName || 'Mi rutina';
     // Default sets/reps for manually picked exercises — the user hasn't
     // configured these yet, so a sensible general-purpose default is used.
-    const exercises = Array.from(selectedExerciseIds).map(id => ({
+    // Order here is exactly the order arranged in "Crear mi rutina" —
+    // becomes the routine's real exercise order, not just how it looked
+    // on screen a moment ago.
+    const exercises = selectedExerciseIds.map(id => ({
       name: EXERCISE_NAME_BY_ID[id],
       exerciseId: id,
       sets: 3,
