@@ -1512,7 +1512,7 @@
 
     <div class="flow-body">
       <div class="form-label">Nombre de tu rutina</div>
-      <input type="text" class="form-input" id="routineNameInput" placeholder="Nombre de tu rutina" />
+      <input type="text" class="form-input" id="routineNameInput" placeholder="Nombre de tu rutina" oninput="updateCreateRoutineButtonState()" />
 
       <div class="form-label">Icono de tu rutina</div>
       <button class="icon-picker-row" onclick="toggleCreateIconPicker()">
@@ -3333,8 +3333,22 @@
         );
       }).join('');
     }
-    document.getElementById('createRoutineBtn').disabled = count === 0;
+    updateCreateRoutineButtonState();
     feather.replace();
+  }
+
+  // Same 2–40 char (post-trim) rule everywhere this needs checking — name
+  // validity and "has at least one exercise" both gate the same button,
+  // using its existing disabled visual state (no new UI, no error text).
+  function isValidRoutineName(name){
+    const trimmed = name.trim();
+    return trimmed.length >= 2 && trimmed.length <= 40;
+  }
+
+  function updateCreateRoutineButtonState(){
+    const nameValid = isValidRoutineName(document.getElementById('routineNameInput').value);
+    const hasExercises = selectedExerciseIds.length > 0;
+    document.getElementById('createRoutineBtn').disabled = !(nameValid && hasExercises);
   }
 
   // Reuses the same generic drag engine as the routine-detail screen (see
@@ -3501,9 +3515,8 @@
   }
 
   function saveCustomRoutine(){
-    if(selectedExerciseIds.length === 0) return;
-    const typedName = document.getElementById('routineNameInput').value.trim();
-    const name = typedName || 'Mi rutina';
+    const name = document.getElementById('routineNameInput').value.trim();
+    if(selectedExerciseIds.length === 0 || !isValidRoutineName(name)) return;
     // Default sets/reps for manually picked exercises — the user hasn't
     // configured these yet, so a sensible general-purpose default is used.
     // Order here is exactly the order arranged in "Crear mi rutina" —
