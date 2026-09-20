@@ -886,6 +886,15 @@
      still being drafted. Reuses .routine-ex-handle (same drag affordance
      as the routine-detail screen) so there's one visual language for
      "this row can be dragged", not two. */
+  /* One-time hint: shown only until the user successfully reorders once
+     in this routine-creation session (see routineReorderHintDismissed). */
+  .routine-reorder-hint{
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font-body);font-weight:500;font-size:12.5px;
+    color:var(--text-tertiary);margin-bottom:10px;
+  }
+  .routine-reorder-hint svg{width:13px;height:13px;}
+
   .exercise-summary-empty{
     font-family:var(--font-body);font-size:13.5px;color:var(--text-tertiary);
     padding:10px 0 18px 0;
@@ -1525,6 +1534,9 @@
       <div class="section-header" style="margin-top:10px;">
         <span class="section-title" style="font-size:17px;">Ejercicios</span>
         <span class="section-action" id="routineConfigCountLabel">0 ejercicios seleccionados</span>
+      </div>
+      <div class="routine-reorder-hint" id="routineReorderHint" style="display:none;">
+        <i data-feather="menu"></i> Mantén y arrastra para cambiar el orden
       </div>
       <div id="routineConfigExerciseSummary"></div>
 
@@ -3289,6 +3301,9 @@
   let createIconPickerOpen = false;
   let exerciseSearchQuery = '';
   let exerciseFilterGroup = 'all';
+  // One-time reorder hint — dismissed for the rest of this routine-creation
+  // session the first time the user actually reorders (see moveSelectedExercise).
+  let routineReorderHintDismissed = false;
 
   // ---------- Screen 1: configure the routine ----------
   function openCreateRoutineScreen(){
@@ -3297,6 +3312,7 @@
     document.getElementById('routineNameInput').value = '';
     customRoutineIcon = DEFAULT_ROUTINE_ICON;
     createIconPickerOpen = false;
+    routineReorderHintDismissed = false;
     document.getElementById('createIconPreview').innerHTML = routineIconSvg(customRoutineIcon);
     document.getElementById('createIconPickerGrid').style.display = 'none';
     renderRoutineConfigSummary();
@@ -3316,6 +3332,9 @@
     document.getElementById('routineConfigCountLabel').textContent =
       count === 0 ? '0 ejercicios seleccionados'
       : count + (count === 1 ? ' ejercicio seleccionado' : ' ejercicios seleccionados');
+
+    document.getElementById('routineReorderHint').style.display =
+      (count >= 2 && !routineReorderHintDismissed) ? 'flex' : 'none';
 
     const summaryEl = document.getElementById('routineConfigExerciseSummary');
     if(count === 0){
@@ -3364,6 +3383,7 @@
     if(fromIndex === toIndex) return;
     const [moved] = selectedExerciseIds.splice(fromIndex, 1);
     selectedExerciseIds.splice(toIndex, 0, moved);
+    routineReorderHintDismissed = true; // only reached on a real reorder — dismiss for the rest of this session
     renderRoutineConfigSummary();
   }
 
