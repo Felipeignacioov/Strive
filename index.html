@@ -422,6 +422,7 @@
   .routine-ex-info{flex:1;min-width:0;}
   .routine-ex-name{font-family:var(--font-body);font-weight:600;font-size:14.5px;color:var(--text-primary);margin-bottom:2px;}
   .routine-ex-meta{font-family:var(--font-body);font-weight:500;font-size:12.5px;color:var(--text-tertiary);}
+  .routine-ex-meta-rest{font-family:var(--font-body);font-weight:500;font-size:11.5px;color:var(--text-tertiary);margin-top:2px;}
   .routine-ex-weight{
     font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--text-primary);
     background:var(--surface-high);padding:5px 10px;border-radius:9px;flex-shrink:0;
@@ -1805,7 +1806,7 @@
     </div>
 
     <div class="ecfg-row">
-      <div class="form-label">Peso de referencia (opcional)</div>
+      <div class="form-label">Peso objetivo (opcional)</div>
       <input type="number" inputmode="decimal" step="0.5" min="0" class="form-input" id="exerciseConfigWeightInput" placeholder="Sin peso registrado" style="margin-bottom:0;" />
     </div>
 
@@ -2841,10 +2842,14 @@
     const body = document.getElementById('routineDetailBody');
     body.innerHTML = (routine.exercises || []).map((ex, i) => {
       const hasWeight = ex.weight !== undefined && ex.weight !== null;
+      // Mismo fallback de 120s que ya usa el resto de la app (startRest, openExerciseConfig)
+      // para ejercicios sin restSeconds configurado todavía — no es un valor nuevo.
+      const restSecondsValue = (ex.restSeconds !== undefined && ex.restSeconds !== null) ? ex.restSeconds : 120;
       const metaHtml =
         '<div class="routine-ex-info">' +
           '<div class="routine-ex-name">' + ex.name + '</div>' +
           '<div class="routine-ex-meta">' + ex.sets + ' series' + (ex.repsRange ? ' · ' + ex.repsRange + ' reps' : '') + '</div>' +
+          '<div class="routine-ex-meta-rest">' + formatRestTime(restSecondsValue) + ' descanso</div>' +
         '</div>';
 
       let weightHtml;
