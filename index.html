@@ -1201,13 +1201,13 @@
           <div class="hero-eyebrow-dot"></div>
           <div class="hero-eyebrow">Tu entrenamiento de hoy</div>
         </div>
-        <div class="hero-title">Push</div>
+        <div class="hero-title" id="heroTodayTitle">Push</div>
         <div class="hero-meta">
-          <div class="hero-meta-item"><i data-feather="layers"></i> 4 ejercicios</div>
+          <div class="hero-meta-item"><i data-feather="layers"></i> <span id="heroTodayExercises">4 ejercicios</span></div>
           <div class="hero-dot"></div>
-          <div class="hero-meta-item"><i data-feather="clock"></i> ~50 min</div>
+          <div class="hero-meta-item"><i data-feather="clock"></i> <span id="heroTodayDuration">~50 min</span></div>
         </div>
-        <button class="hero-cta" onclick="openWorkout()">Iniciar entrenamiento <i data-feather="arrow-right"></i></button>
+        <button class="hero-cta" onclick="startTodayWorkout()">Iniciar entrenamiento <i data-feather="arrow-right"></i></button>
       </div>
 
       <!-- Empty state: shown when the user has no routine assigned for today -->
@@ -1434,7 +1434,7 @@
         <div class="workout-routine" id="wkRoutineName">Push</div>
         <div class="workout-progress-label" id="wkExerciseLabel">Ejercicio 1 de 4</div>
       </div>
-      <button class="close-btn" onclick="closeWorkout()"><i data-feather="x"></i></button>
+      <button class="close-btn" onclick="requestCloseWorkout()"><i data-feather="x"></i></button>
     </div>
 
     <div class="dots-row" id="wkDots"></div>
@@ -1498,6 +1498,21 @@
         <span class="next-name" id="wkNextName">Press inclinado mancuerna</span>
       </div>
       <button class="primary-btn" id="wkPrimaryBtn" onclick="onPrimaryAction()">Completar serie <i data-feather="check"></i></button>
+    </div>
+  </div>
+
+  <!-- ============ CONFIRMAR SALIDA DEL ENTRENAMIENTO ============ -->
+  <!-- Solo se muestra si hay al menos una serie con completed:true (ver
+       requestCloseWorkout). Reutiliza exactamente el mismo patrón visual
+       que "¿Eliminar rutina?" (.sheet-backdrop + .confirm-dialog) — ningún
+       componente nuevo. closeWorkout() sigue siendo el único cierre real. -->
+  <div class="sheet-backdrop" id="workoutExitConfirmBackdrop" onclick="closeWorkoutExitConfirm()"></div>
+  <div class="confirm-dialog" id="workoutExitConfirmDialog">
+    <div class="confirm-title">¿Salir del entrenamiento?</div>
+    <div class="confirm-desc">Has avanzado en este entrenamiento. Si sales ahora, perderás el progreso de esta sesión.</div>
+    <div class="confirm-actions">
+      <button class="confirm-cancel-btn" onclick="closeWorkoutExitConfirm()">Seguir entrenando</button>
+      <button class="confirm-delete-btn" onclick="confirmWorkoutExit()">Salir</button>
     </div>
   </div>
 
@@ -2053,6 +2068,41 @@
     document.getElementById('workoutOverlay').classList.remove('open');
     clearInterval(restInterval);
     restPaused = false;
+  }
+
+  // ---------- Confirmar salida del entrenamiento (botón X) ----------
+  // Detecta progreso real preguntando directamente a set.completed — la
+  // misma fuente de verdad que ya usa logCompletedWorkout() para decidir qué
+  // se guarda. No se crea un segundo sistema de estado ni se toca ese, ni
+  // exIndex, ni si hay un descanso activo.
+  function hasAnyCompletedSet(){
+    return workout.some(ex => ex.sets.some(s => s.completed));
+  }
+
+  // Único punto de entrada del botón X. closeWorkout() sigue siendo la única
+  // función que realmente cierra el overlay — esto solo decide si hace falta
+  // preguntar antes de llamarla.
+  function requestCloseWorkout(){
+    if(hasAnyCompletedSet()){
+      document.getElementById('workoutExitConfirmBackdrop').classList.add('open');
+      document.getElementById('workoutExitConfirmDialog').classList.add('open');
+    } else {
+      closeWorkout();
+    }
+  }
+
+  // "Seguir entrenando" y el backdrop: solo ocultan el diálogo. No tocan
+  // workout, exIndex, el descanso activo ni ningún otro estado.
+  function closeWorkoutExitConfirm(){
+    document.getElementById('workoutExitConfirmBackdrop').classList.remove('open');
+    document.getElementById('workoutExitConfirmDialog').classList.remove('open');
+  }
+
+  // "Salir": mismo camino de cierre real de siempre. No llama a
+  // logCompletedWorkout(), no toca workoutLogs, récords ni historial.
+  function confirmWorkoutExit(){
+    closeWorkoutExitConfirm();
+    closeWorkout();
   }
 
   // ---------- Post-workout summary: the session's actual close/reward moment ----------
@@ -2643,11 +2693,31 @@
 
   // Toggles between the two Home hero cards that already exist in the markup
   // (#heroWithRoutine / #heroEmptyState) based on the real routines state —
-  // no new card, no new logic beyond this visibility switch.
+  // no new card, no new logic beyond this visibility switch. Now also fills
+  // the hero's text from routines[0] (the MVP "today" candidate) whenever
+  // there's at least one routine, so Home stops showing hardcoded "Push".
   function updateHomeHeroState(){
     const hasRoutines = routines.length > 0;
     document.getElementById('heroWithRoutine').style.display = hasRoutines ? 'block' : 'none';
     document.getElementById('heroEmptyState').style.display = hasRoutines ? 'none' : 'flex';
+
+    if(hasRoutines){
+      const routine = routines[0];
+      document.getElementById('heroTodayTitle').textContent = routine.name;
+      const exerciseCount = routine.exercises ? routine.exercises.length : routine.exerciseCount;
+      document.getElementById('heroTodayExercises').textContent = exerciseCount + ' ejercicios';
+      document.getElementById('heroTodayDuration').textContent = '~' + routine.estimatedMinutes + ' min';
+    }
+  }
+
+  // Minimal wrapper so the hero's CTA doesn't hardcode routines[0].id inline
+  // in the HTML. Same "routines[0] = today" MVP criterion as the hero's own
+  // content above — no new selection/planning logic, just reads and delegates
+  // to the exact same startWorkoutFromRoutine() "Mis rutinas" already uses.
+  function startTodayWorkout(){
+    if(routines.length === 0) return;
+    const routine = routines[0];
+    startWorkoutFromRoutine(routine.id);
   }
 
   // ---------- Exercise catalog, grouped by muscle group ----------
