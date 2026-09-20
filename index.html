@@ -2593,29 +2593,61 @@
   function renderRoutinesList(highlightId){
     const container = document.getElementById('rutinasListContainer');
     container.innerHTML = '';
-    routines.forEach(r => {
-      const el = document.createElement('div');
-      el.className = 'routine-card' + (r.id === highlightId ? ' just-created' : '');
-      el.innerHTML =
-        '<div class="routine-icon">' + routineIconSvg(r.icon || DEFAULT_ROUTINE_ICON) + '</div>' +
-        '<div class="routine-info">' +
-          '<div class="routine-name">' + r.name + '</div>' +
-          '<div class="routine-meta">' + r.exerciseCount + ' ejercicios · ~' + r.estimatedMinutes + ' min</div>' +
-          '<div class="routine-last">' + (r.lastPerformed ? 'Última vez: ' + r.lastPerformed : 'Recién creada') + '</div>' +
-        '</div>' +
-        '<button class="routine-kebab-btn" data-role="kebab"><i data-feather="more-vertical"></i></button>' +
-        '<i data-feather="chevron-right" class="chev"></i>';
-      // Every routine opens its preview first — never straight into a workout.
-      el.addEventListener('click', () => openRoutineDetail(r.id));
-      el.querySelector('[data-role="kebab"]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openRoutineMenu(r.id);
+
+    if(routines.length === 0){
+      // Estado vacío real: routines.length === 0. No se recrean rutinas por
+      // defecto aquí — solo se informa y se reutiliza el flujo de creación que
+      // ya existe (openCreateSheet -> Crear mi rutina / Crear rutina con Strive).
+      // Reutiliza el patrón .ex-empty-state ya usado en "Añadir ejercicios".
+      container.innerHTML =
+        '<div class="ex-empty-state" style="padding-top:64px;">' +
+          '<div class="ex-empty-title">No tienes rutinas todavía</div>' +
+          '<div class="ex-empty-sub">Crea tu primera rutina para empezar a entrenar.</div>' +
+          '<button class="flow-primary-btn" style="margin-top:24px;" onclick="openCreateSheet()">' +
+            '<i data-feather="plus"></i> Crear rutina' +
+          '</button>' +
+        '</div>';
+    } else {
+      routines.forEach(r => {
+        const el = document.createElement('div');
+        el.className = 'routine-card' + (r.id === highlightId ? ' just-created' : '');
+        el.innerHTML =
+          '<div class="routine-icon">' + routineIconSvg(r.icon || DEFAULT_ROUTINE_ICON) + '</div>' +
+          '<div class="routine-info">' +
+            '<div class="routine-name">' + r.name + '</div>' +
+            '<div class="routine-meta">' + r.exerciseCount + ' ejercicios · ~' + r.estimatedMinutes + ' min</div>' +
+            '<div class="routine-last">' + (r.lastPerformed ? 'Última vez: ' + r.lastPerformed : 'Recién creada') + '</div>' +
+          '</div>' +
+          '<button class="routine-kebab-btn" data-role="kebab"><i data-feather="more-vertical"></i></button>' +
+          '<i data-feather="chevron-right" class="chev"></i>';
+        // Every routine opens its preview first — never straight into a workout.
+        el.addEventListener('click', () => openRoutineDetail(r.id));
+        el.querySelector('[data-role="kebab"]').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openRoutineMenu(r.id);
+        });
+        container.appendChild(el);
       });
-      container.appendChild(el);
-    });
+    }
+
     const n = routines.length;
     document.getElementById('rutinasCountLabel').textContent = n + (n === 1 ? ' rutina activa' : ' rutinas activas');
+
+    // Home's "Tu entrenamiento de hoy" only makes sense with at least one
+    // routine — re-synced here so every flow that already calls
+    // renderRoutinesList() (crear, eliminar, editar, generar con Strive)
+    // keeps Home correct too, without needing a separate call site each time.
+    updateHomeHeroState();
     feather.replace();
+  }
+
+  // Toggles between the two Home hero cards that already exist in the markup
+  // (#heroWithRoutine / #heroEmptyState) based on the real routines state —
+  // no new card, no new logic beyond this visibility switch.
+  function updateHomeHeroState(){
+    const hasRoutines = routines.length > 0;
+    document.getElementById('heroWithRoutine').style.display = hasRoutines ? 'block' : 'none';
+    document.getElementById('heroEmptyState').style.display = hasRoutines ? 'none' : 'flex';
   }
 
   // ---------- Exercise catalog, grouped by muscle group ----------
