@@ -1018,6 +1018,25 @@
   }
   .routine-ex-weight-confirm svg{width:13px;height:13px;color:#fff;}
 
+  /* ---------- Configurar ejercicio (sheet): series / reps / descanso / peso ----------
+     Tap area = index + info, wraps the same two children that used to sit directly in
+     .routine-ex-row, with the exact same flex layout — visual result is unchanged, it
+     only adds a tap target that opens the config sheet without touching the demo
+     button, the weight button or the drag handle (all remain separate siblings). */
+  .routine-ex-tap-area{display:flex;align-items:center;gap:14px;flex:1;min-width:0;cursor:pointer;}
+  .ecfg-row{margin-bottom:20px;}
+  .ecfg-row:last-child{margin-bottom:4px;}
+  .ecfg-stepper{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--surface-high);border:1px solid var(--border-light);border-radius:16px;padding:6px;
+  }
+  .ecfg-stepper-btn{
+    width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--border-light);
+    display:flex;align-items:center;justify-content:center;color:var(--text-primary);cursor:pointer;flex-shrink:0;
+  }
+  .ecfg-stepper-btn svg{width:16px;height:16px;}
+  .ecfg-stepper-value{font-family:var(--font-display);font-weight:700;font-size:19px;color:var(--text-primary);}
+
   /* ---------- Editar rutina ---------- */
   .edit-ex-row{
     background:var(--surface);border:1px solid var(--border);border-radius:16px;
@@ -1751,6 +1770,49 @@
 
     <div class="ex-demo-attribution" id="exerciseDemoAttribution" style="display:none;">Imágenes por RepDB (repdb.co)</div>
     <button class="sheet-cancel" onclick="closeExerciseDemo()">Cerrar</button>
+  </div>
+
+  <!-- ============ CONFIGURAR EJERCICIO: series / reps / descanso / peso de referencia ============ -->
+  <!-- Opens from tapping an exercise row in the routine preview (routine-ex-tap-area).
+       Only ever writes into routine.exercises[index] on Guardar — never touches
+       `workout` or `workoutLogs`. Same action-sheet pattern as "Ver ejercicio" above. -->
+  <div class="sheet-backdrop" id="exerciseConfigBackdrop" onclick="closeExerciseConfig()"></div>
+  <div class="action-sheet" id="exerciseConfigSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="exerciseConfigName" style="margin-bottom:18px;">Press banca</div>
+
+    <div class="ecfg-row">
+      <div class="form-label">Series</div>
+      <div class="ecfg-stepper">
+        <button class="ecfg-stepper-btn" onclick="adjustExerciseConfigSets(-1)"><i data-feather="minus"></i></button>
+        <span class="ecfg-stepper-value" id="exerciseConfigSetsValue">3</span>
+        <button class="ecfg-stepper-btn" onclick="adjustExerciseConfigSets(1)"><i data-feather="plus"></i></button>
+      </div>
+    </div>
+
+    <div class="ecfg-row">
+      <div class="form-label">Rango de repeticiones</div>
+      <input type="text" class="form-input" id="exerciseConfigRepsInput" placeholder="8-12" style="margin-bottom:0;" />
+    </div>
+
+    <div class="ecfg-row">
+      <div class="form-label">Descanso</div>
+      <div class="ecfg-stepper">
+        <button class="ecfg-stepper-btn" onclick="adjustExerciseConfigRest(-15)"><i data-feather="minus"></i></button>
+        <span class="ecfg-stepper-value" id="exerciseConfigRestValue">02:00</span>
+        <button class="ecfg-stepper-btn" onclick="adjustExerciseConfigRest(15)"><i data-feather="plus"></i></button>
+      </div>
+    </div>
+
+    <div class="ecfg-row">
+      <div class="form-label">Peso de referencia (opcional)</div>
+      <input type="number" inputmode="decimal" step="0.5" min="0" class="form-input" id="exerciseConfigWeightInput" placeholder="Sin peso registrado" style="margin-bottom:0;" />
+    </div>
+
+    <button class="flow-primary-btn" id="exerciseConfigSaveBtn" onclick="saveExerciseConfig()" style="margin-top:4px;">
+      Guardar <i data-feather="check"></i>
+    </button>
+    <button class="sheet-cancel" onclick="closeExerciseConfig()">Cancelar</button>
   </div>
 
   <!-- ============ CONFIRM DELETE ============ -->
@@ -2745,6 +2807,8 @@
   // explicitly taps "Iniciar entrenamiento" below.
   let currentPreviewRoutineId = null;
   let editingWeightIndex = null; // which exercise row (in the open preview) is mid-edit, if any
+  let exerciseConfigTargetIndex = null; // which exercise row the config sheet is open for, if any
+  let exerciseConfigDraft = null; // { sets, restSeconds } — stepper-driven fields only; repsRange/weight are read live from their inputs on save
 
   function openRoutineDetail(routineId){
     const routine = routines.find(r => r.id === routineId);
@@ -2810,7 +2874,18 @@
       // scroll gesture from hijacking the touch before our drag can start.
       const handleHtml = '<div class="routine-ex-handle" onpointerdown="startRoutineDetailDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>';
 
-      return '<div class="routine-ex-row" data-index="' + i + '"><div class="routine-ex-index">' + (i + 1) + '</div>' + metaHtml + demoHtml + weightHtml + handleHtml + '</div>';
+      // Tap area = index + info only. Mirrors the exact flex layout those two elements
+      // already had directly inside .routine-ex-row (see .routine-ex-tap-area CSS), so
+      // wrapping them changes nothing visually — it only adds a tap target for opening
+      // "Configurar ejercicio". The demo button, weight button and drag handle stay as
+      // separate siblings, exactly as before, so none of their behavior changes.
+      const tapAreaHtml =
+        '<div class="routine-ex-tap-area" onclick="openExerciseConfig(' + i + ')">' +
+          '<div class="routine-ex-index">' + (i + 1) + '</div>' +
+          metaHtml +
+        '</div>';
+
+      return '<div class="routine-ex-row" data-index="' + i + '">' + tapAreaHtml + demoHtml + weightHtml + handleHtml + '</div>';
     }).join('');
 
     feather.replace();
@@ -2844,6 +2919,115 @@
 
   function closeRoutineDetail(){
     document.getElementById('routineDetailScreen').classList.remove('open');
+  }
+
+  // ================================================================
+  // CONFIGURAR EJERCICIO — series / rango de reps / descanso / peso de referencia,
+  // por ejercicio dentro de la rutina que se está previsualizando. Opens from tapping
+  // a row in routineDetailBody (see routine-ex-tap-area above). Only ever reads/writes
+  // routine.exercises[exerciseConfigTargetIndex] — no toca `workout` ni `workoutLogs`.
+  //
+  // sets/restSeconds viven en exerciseConfigDraft (steppers, sin input de texto).
+  // repsRange/weight se leen directo de sus <input> al guardar — mismo patrón que
+  // el resto de formularios de Strive (ej. confirmWeightEdit, saveManualRecord).
+  // ================================================================
+  function openExerciseConfig(index){
+    const routine = routines.find(r => r.id === currentPreviewRoutineId);
+    if(!routine || !routine.exercises || !routine.exercises[index]) return;
+    const ex = routine.exercises[index];
+
+    exerciseConfigTargetIndex = index;
+    exerciseConfigDraft = {
+      sets: (ex.sets && ex.sets >= 1) ? ex.sets : 1,
+      // restSeconds no existe todavía en la mayoría de rutinas — 120s por defecto,
+      // tal como pide la spec, sin migrar nada más de la rutina.
+      restSeconds: (ex.restSeconds !== undefined && ex.restSeconds !== null) ? ex.restSeconds : 120,
+    };
+
+    document.getElementById('exerciseConfigName').textContent = ex.name;
+    document.getElementById('exerciseConfigRepsInput').value = ex.repsRange || '';
+    document.getElementById('exerciseConfigWeightInput').value = (ex.weight !== undefined && ex.weight !== null) ? ex.weight : '';
+
+    renderExerciseConfigSheet();
+    document.getElementById('exerciseConfigBackdrop').classList.add('open');
+    document.getElementById('exerciseConfigSheet').classList.add('open');
+    feather.replace();
+  }
+
+  function renderExerciseConfigSheet(){
+    if(!exerciseConfigDraft) return;
+    document.getElementById('exerciseConfigSetsValue').textContent = exerciseConfigDraft.sets;
+    // Reuses the same mm:ss formatter the active rest banner already uses — one
+    // "what does a rest duration look like" convention across the app, not two.
+    document.getElementById('exerciseConfigRestValue').textContent = formatRestTime(exerciseConfigDraft.restSeconds);
+    updateExerciseConfigSaveState();
+  }
+
+  function adjustExerciseConfigSets(delta){
+    if(!exerciseConfigDraft) return;
+    exerciseConfigDraft.sets = Math.max(1, exerciseConfigDraft.sets + delta);
+    renderExerciseConfigSheet();
+  }
+
+  function adjustExerciseConfigRest(delta){
+    if(!exerciseConfigDraft) return;
+    exerciseConfigDraft.restSeconds = Math.max(0, exerciseConfigDraft.restSeconds + delta);
+    renderExerciseConfigSheet();
+  }
+
+  // Same validation rules the spec asks for: series >= 1 (also enforced by the
+  // stepper's own clamp), descanso >= 0 (idem), repsRange no vacío, peso opcional
+  // pero nunca negativo. Kept local to this sheet — no new global error-message system.
+  function isValidExerciseConfigForm(){
+    if(!exerciseConfigDraft) return false;
+    if(exerciseConfigDraft.sets < 1) return false;
+    if(exerciseConfigDraft.restSeconds < 0) return false;
+
+    const repsRange = document.getElementById('exerciseConfigRepsInput').value.trim();
+    if(repsRange === '') return false;
+
+    const weightRaw = document.getElementById('exerciseConfigWeightInput').value.trim();
+    if(weightRaw !== ''){
+      const w = parseFloat(weightRaw);
+      if(isNaN(w) || w < 0) return false;
+    }
+    return true;
+  }
+
+  function updateExerciseConfigSaveState(){
+    document.getElementById('exerciseConfigSaveBtn').disabled = !isValidExerciseConfigForm();
+  }
+
+  function closeExerciseConfig(){
+    document.getElementById('exerciseConfigBackdrop').classList.remove('open');
+    document.getElementById('exerciseConfigSheet').classList.remove('open');
+    exerciseConfigTargetIndex = null;
+    exerciseConfigDraft = null;
+  }
+
+  // Writes straight into the same `routines` array everything else reads from —
+  // no parallel draft store, no new persistence. Preserves exerciseId/name/whatever
+  // else is already on the object; only sets/repsRange/restSeconds/weight are touched.
+  function saveExerciseConfig(){
+    if(exerciseConfigTargetIndex === null || !exerciseConfigDraft) return;
+    if(!isValidExerciseConfigForm()) return;
+
+    const routine = routines.find(r => r.id === currentPreviewRoutineId);
+    if(!routine || !routine.exercises[exerciseConfigTargetIndex]) return;
+    const ex = routine.exercises[exerciseConfigTargetIndex];
+
+    const repsRange = document.getElementById('exerciseConfigRepsInput').value.trim();
+    const weightRaw = document.getElementById('exerciseConfigWeightInput').value.trim();
+    const parsedWeight = weightRaw === '' ? undefined : parseFloat(weightRaw);
+
+    ex.sets = exerciseConfigDraft.sets;
+    ex.repsRange = repsRange;
+    ex.restSeconds = exerciseConfigDraft.restSeconds;
+    ex.weight = (parsedWeight !== undefined && !isNaN(parsedWeight) && parsedWeight >= 0) ? parsedWeight : undefined;
+
+    closeExerciseConfig();
+    renderRoutineDetailBody();
+    showSuccessToast('Ejercicio actualizado');
   }
 
   // ================================================================
@@ -2981,7 +3165,7 @@
     const routine = routines.find(r => r.id === routineId);
     if(!routine || !routine.exercises || routine.exercises.length === 0) return;
 
-    workout = routine.exercises.map(ex => ({ name: ex.name, repsRange: ex.repsRange, sets: buildSetsForExercise(ex) }));
+    workout = routine.exercises.map(ex => ({ name: ex.name, repsRange: ex.repsRange, restSeconds: ex.restSeconds, sets: buildSetsForExercise(ex) }));
     exIndex = 0;
     clearInterval(restInterval);
     restRemaining = null;
@@ -4129,6 +4313,10 @@
 
   ['addRecordWeight', 'addRecordDate'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateAddRecordFooter);
+  });
+
+  ['exerciseConfigRepsInput', 'exerciseConfigWeightInput'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateExerciseConfigSaveState);
   });
 
   // ================================================================
