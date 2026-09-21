@@ -1347,7 +1347,7 @@
       <div style="height:28px"></div>
       <div class="section-header">
         <span class="section-title">Récords personales</span>
-        <span class="section-action" onclick="openAddRecordScreen()"><i data-feather="plus"></i> Añadir marca</span>
+        <span class="section-action" onclick="openAllRecordsScreen()">Ver todos <i data-feather="chevron-right"></i></span>
       </div>
       <div class="card" style="padding:0">
         <div id="personalRecordsList"></div>
@@ -1671,6 +1671,29 @@
       <button class="flow-primary-btn" id="saveRecordBtn" onclick="saveManualRecord()" disabled>
         Guardar marca <i data-feather="check"></i>
       </button>
+    </div>
+  </div>
+
+  <!-- ============ VER TODOS LOS RÉCORDS: listado completo ============ -->
+  <!-- Solo presentación — reutiliza getAllPersonalRecords() (misma fuente de
+       datos, sin cambios en la lógica de cálculo) y el mismo .pr-row que la
+       vista compacta de Progreso. -->
+  <div class="flow-overlay" id="allRecordsScreen">
+    <div class="flow-header">
+      <div>
+        <div class="flow-title">Récords personales</div>
+        <div class="flow-subtitle">Tu mejor marca en cada ejercicio.</div>
+      </div>
+      <button class="close-btn" onclick="closeAllRecordsScreen()"><i data-feather="x"></i></button>
+    </div>
+
+    <div class="flow-body" style="padding-bottom:24px;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+        <span class="section-action" onclick="openAddRecordScreen()"><i data-feather="plus"></i> Añadir marca</span>
+      </div>
+      <div class="card" style="padding:0">
+        <div id="allRecordsList"></div>
+      </div>
     </div>
   </div>
 
@@ -4096,11 +4119,13 @@
   }
 
   // Same "before today" comparison the PR list itself relies on — scans
-  // every existing log for this exercise (any source) and returns the
-  // heaviest weight found, or null if it's never been logged before.
+  // every log for this exercise (workout + manual-import only — legacy-seed
+  // is demo data and must never influence real PR detection) and returns
+  // the heaviest weight found, or null if it's never been logged before.
   function computePreviousBestForExercise(exerciseName){
     let best = null;
     workoutLogs.forEach(log => {
+      if(log.source === 'legacy-seed') return;
       log.entries.forEach(e => {
         if(e.exerciseName === exerciseName && (best === null || e.weightKg > best)){
           best = e.weightKg;
@@ -4146,9 +4171,14 @@
 
   // Only exercises that actually appear in the log are shown — never an
   // invented record for something the user hasn't logged yet. Sorted by
-  // how recently the record was set, most recent first.
+  // how recently the record was set, most recent first. legacy-seed
+  // (demo data) is excluded here — only source:'workout' (real sessions)
+  // and source:'manual-import' (weights the user imported themselves)
+  // count toward a personal record.
   function getAllPersonalRecords(){
-    const chronologicalLogs = [...workoutLogs].sort((a, b) => a.date.localeCompare(b.date));
+    const chronologicalLogs = [...workoutLogs]
+      .filter(log => log.source !== 'legacy-seed')
+      .sort((a, b) => a.date.localeCompare(b.date));
     const exerciseNames = new Set();
     chronologicalLogs.forEach(log => log.entries.forEach(e => exerciseNames.add(e.exerciseName)));
 
@@ -4163,36 +4193,67 @@
     return records;
   }
 
+  // Same row markup used by both the compact Progreso view (top 3) and the
+  // full "Ver todos" list — one visual component, two render call sites,
+  // instead of duplicating this HTML. Pure presentation, no PR calculation
+  // logic lives here.
+  function buildPersonalRecordRowHtml(r){
+    const delta = r.previousRecord ? Math.round((r.currentRecord.weight - r.previousRecord.weight) * 100) / 100 : null;
+
+    let deltaHtml;
+    if(delta === null){
+      // No prior record to compare against yet — show the record alone, per spec.
+      deltaHtml = '';
+    } else if(delta > 0){
+      deltaHtml = '<div class="pr-delta pr-delta-up"><i data-feather="trending-up"></i> +' + formatWeightEs(delta) + ' kg</div>';
+    } else {
+      deltaHtml = '<div class="pr-delta pr-delta-flat">Sin cambios</div>';
+    }
+
+    return (
+      '<div class="pr-row">' +
+        '<div class="pr-icon"><i data-feather="award"></i></div>' +
+        '<div>' +
+          '<div class="pr-name">' + r.exerciseName + '</div>' +
+          '<div class="pr-date">' + formatDateEs(r.currentRecord.date) + ' · ' + formatWeightEs(r.currentRecord.weight) + ' kg</div>' +
+        '</div>' +
+        deltaHtml +
+      '</div>'
+    );
+  }
+
+  // Progreso solo muestra los 3 récords más recientes (por fecha de
+  // consecución) para no alargar la pantalla — getAllPersonalRecords() ya
+  // devuelve el orden correcto (más reciente primero), así que limitar es
+  // solo un .slice() sobre su resultado, sin tocar esa función.
+  const PERSONAL_RECORDS_PREVIEW_LIMIT = 3;
+
   function renderPersonalRecords(){
     const container = document.getElementById('personalRecordsList');
-    const records = getAllPersonalRecords();
-
-    container.innerHTML = records.map(r => {
-      const delta = r.previousRecord ? Math.round((r.currentRecord.weight - r.previousRecord.weight) * 100) / 100 : null;
-
-      let deltaHtml;
-      if(delta === null){
-        // No prior record to compare against yet — show the record alone, per spec.
-        deltaHtml = '';
-      } else if(delta > 0){
-        deltaHtml = '<div class="pr-delta pr-delta-up"><i data-feather="trending-up"></i> +' + formatWeightEs(delta) + ' kg</div>';
-      } else {
-        deltaHtml = '<div class="pr-delta pr-delta-flat">Sin cambios</div>';
-      }
-
-      return (
-        '<div class="pr-row">' +
-          '<div class="pr-icon"><i data-feather="award"></i></div>' +
-          '<div>' +
-            '<div class="pr-name">' + r.exerciseName + '</div>' +
-            '<div class="pr-date">' + formatDateEs(r.currentRecord.date) + ' · ' + formatWeightEs(r.currentRecord.weight) + ' kg</div>' +
-          '</div>' +
-          deltaHtml +
-        '</div>'
-      );
-    }).join('');
-
+    const records = getAllPersonalRecords().slice(0, PERSONAL_RECORDS_PREVIEW_LIMIT);
+    container.innerHTML = records.map(buildPersonalRecordRowHtml).join('');
     feather.replace();
+  }
+
+  // "Ver todos" — mismo dato (getAllPersonalRecords), mismo componente de
+  // fila, sin límite. No es una lógica de PR nueva, solo una vista distinta
+  // sobre el mismo resultado.
+  function renderAllPersonalRecords(){
+    const container = document.getElementById('allRecordsList');
+    const records = getAllPersonalRecords();
+    container.innerHTML = records.length
+      ? records.map(buildPersonalRecordRowHtml).join('')
+      : '<div class="ex-empty-state"><div class="ex-empty-title">Todavía no tienes récords</div><div class="ex-empty-sub">Completa un entrenamiento para empezar a registrar tus marcas.</div></div>';
+    feather.replace();
+  }
+
+  function openAllRecordsScreen(){
+    renderAllPersonalRecords();
+    document.getElementById('allRecordsScreen').classList.add('open');
+  }
+
+  function closeAllRecordsScreen(){
+    document.getElementById('allRecordsScreen').classList.remove('open');
   }
 
   // ================================================================
