@@ -1493,7 +1493,7 @@
 
     <div class="workout-footer">
       <div class="next-row" id="wkNextRow">
-        <i data-feather="arrow-right-circle"></i>
+        <i data-feather="arrow-right"></i>
         <span class="next-label">Siguiente</span>
         <span class="next-name" id="wkNextName">Press inclinado mancuerna</span>
       </div>
@@ -1571,7 +1571,7 @@
         <span class="section-action" id="routineConfigCountLabel">0 ejercicios seleccionados</span>
       </div>
       <div class="routine-reorder-hint" id="routineReorderHint" style="display:none;">
-        <i data-feather="menu"></i> Mantén y arrastra para cambiar el orden
+        <i data-feather="move"></i> Mantén y arrastra para cambiar el orden
       </div>
       <div id="routineConfigExerciseSummary"></div>
 
@@ -1705,7 +1705,7 @@
   <div class="flow-overlay" id="routineDetailScreen">
     <div class="flow-header">
       <div class="routine-detail-header-left">
-        <div class="routine-icon" id="routineDetailIcon"><i data-feather="shield"></i></div>
+        <div class="routine-icon" id="routineDetailIcon"><i data-feather="activity"></i></div>
         <div>
           <div class="flow-title" id="routineDetailName">Push</div>
           <div class="flow-subtitle" id="routineDetailSubtitle">Pecho · Hombros · Tríceps</div>
@@ -1749,7 +1749,7 @@
 
       <div class="form-label">Icono de rutina</div>
       <button class="icon-picker-row" onclick="toggleIconPicker()">
-        <div class="routine-icon" id="editIconPreview"><i data-feather="shield"></i></div>
+        <div class="routine-icon" id="editIconPreview"><i data-feather="activity"></i></div>
         <span class="icon-picker-label">Toca para cambiar</span>
         <i data-feather="chevron-right" class="chev"></i>
       </button>
@@ -3002,7 +3002,7 @@
       // tapping the demo thumbnail or the weight button never triggers one.
       // touch-action:none on the handle is what stops the browser's own
       // scroll gesture from hijacking the touch before our drag can start.
-      const handleHtml = '<div class="routine-ex-handle" onpointerdown="startRoutineDetailDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>';
+      const handleHtml = '<div class="routine-ex-handle" onpointerdown="startRoutineDetailDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="move"></i></div>';
 
       // Tap area = index + info only. Mirrors the exact flex layout those two elements
       // already had directly inside .routine-ex-row (see .routine-ex-tap-area CSS), so
@@ -3659,7 +3659,7 @@
         if(!ex) return '';
         return (
           '<div class="exercise-summary-row">' +
-            '<div class="routine-ex-handle" onpointerdown="startSelectionDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="menu"></i></div>' +
+            '<div class="routine-ex-handle" onpointerdown="startSelectionDrag(event,' + i + ')" title="Arrastra para reordenar"><i data-feather="move"></i></div>' +
             '<span class="exercise-summary-name">' + ex.name + '</span>' +
             '<button class="exercise-summary-remove" onclick="removeSelectedExercise(' + i + ')" title="Quitar ejercicio"><i data-feather="x"></i></button>' +
           '</div>'
