@@ -2184,7 +2184,7 @@
       prSection.style.display = 'block';
       document.getElementById('wsPrList').innerHTML = summary.prBreaks.map(pr => (
         '<div class="pr-row">' +
-          '<div class="pr-icon"><i data-feather="award"></i></div>' +
+          '<div class="pr-icon">' + prMedalSvg() + '</div>' +
           '<div>' +
             '<div class="pr-name">' + pr.exerciseName + '</div>' +
             '<div class="pr-date">Antes: ' + formatWeightEs(pr.previous) + ' kg</div>' +
@@ -2646,6 +2646,27 @@
     const shape = ROUTINE_ICON_SHAPES[iconId] || ROUTINE_ICON_SHAPES.target;
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
       'stroke-linecap="round" stroke-linejoin="round">' + shape + '</svg>';
+  }
+
+  // Custom PR (personal record) medal — same construction convention as
+  // routineIconSvg() above (24x24, no fill, currentColor stroke, 2px,
+  // round caps/joins), replacing Feather's built-in "award" icon only in
+  // PR contexts (Récords personales, "Nuevos récords" en el resumen de
+  // entrenamiento, y el badge de primer registro en "Tu progreso"). A
+  // clean ribbon-and-disc silhouette — no star, no trophy, no crown — with
+  // a single concentric inner circle as the only refinement, nothing else
+  // added. Color is inherited via currentColor from each wrapper's own
+  // CSS (.pr-icon svg / .progress-trend-new svg already set
+  // color:var(--accent-bright)) — unchanged, so red stays exactly as
+  // controlled as it already was (thin outline strokes, never a filled
+  // block).
+  function prMedalSvg(){
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M8.5 9L12 3L15.5 9"/>' +
+      '<circle cx="12" cy="14" r="6.5"/>' +
+      '<circle cx="12" cy="14" r="3"/>' +
+      '</svg>';
   }
 
   const ROUTINE_ICONS = [
@@ -4250,7 +4271,7 @@
 
     return (
       '<div class="pr-row">' +
-        '<div class="pr-icon"><i data-feather="award"></i></div>' +
+        '<div class="pr-icon">' + prMedalSvg() + '</div>' +
         '<div>' +
           '<div class="pr-name">' + r.exerciseName + '</div>' +
           '<div class="pr-date">' + formatDateEs(r.currentRecord.date) + ' · ' + formatWeightEs(r.currentRecord.weight) + ' kg</div>' +
@@ -4307,7 +4328,7 @@
             '<circle class="trend-dot-from" cx="3" cy="20" r="2.5"/>' +
             '<circle cx="37" cy="6" r="2.5"/>' +
           '</svg>'
-        : '<div class="progress-trend-new"><i data-feather="award"></i></div>';
+        : '<div class="progress-trend-new">' + prMedalSvg() + '</div>';
 
       return (
         '<div class="card progress-card">' +
