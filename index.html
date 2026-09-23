@@ -385,10 +385,10 @@
   /* Shown instead of the trend line when there's no previous record yet to
      compare against — never fabricates a "before" point that doesn't exist. */
   .progress-trend-new{
-    width:28px;height:28px;border-radius:999px;flex-shrink:0;
+    width:26px;height:26px;border-radius:999px;flex-shrink:0;
     background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
   }
-  .progress-trend-new svg{width:14px;height:14px;color:var(--accent-bright);}
+  .progress-trend-new svg{width:13px;height:13px;color:var(--accent-bright);}
   .progress-empty{
     width:100%;
     font-family:var(--font-body);font-size:13.5px;color:var(--text-tertiary);
@@ -2648,24 +2648,26 @@
       'stroke-linecap="round" stroke-linejoin="round">' + shape + '</svg>';
   }
 
-  // Custom PR (personal record) medal — same construction convention as
-  // routineIconSvg() above (24x24, no fill, currentColor stroke, 2px,
-  // round caps/joins), replacing Feather's built-in "award" icon only in
-  // PR contexts (Récords personales, "Nuevos récords" en el resumen de
-  // entrenamiento, y el badge de primer registro en "Tu progreso"). A
-  // clean ribbon-and-disc silhouette — no star, no trophy, no crown — with
-  // a single concentric inner circle as the only refinement, nothing else
-  // added. Color is inherited via currentColor from each wrapper's own
-  // CSS (.pr-icon svg / .progress-trend-new svg already set
-  // color:var(--accent-bright)) — unchanged, so red stays exactly as
-  // controlled as it already was (thin outline strokes, never a filled
-  // block).
+  // Custom PR (personal record) medal — the single visual source for PR
+  // across the app (Récords personales, "Nuevos récords" en el resumen de
+  // entrenamiento, y el badge de primer registro en "Tu progreso"). Same
+  // construction convention as routineIconSvg() (24x24, no fill,
+  // currentColor stroke, 2px, round caps/joins).
+  //
+  // Two straight, fully PARALLEL ribbon straps (never converging to a
+  // point) feeding into a plain disc with one concentric inner circle as
+  // the only center detail. Deliberately avoids any single-apex "V"/chevron
+  // shape sitting on top of the circle — that construction is visually
+  // identical to how flame/teardrop icons are built (a triangle fused into
+  // a circle), which is exactly the "gota / llama" misread reported. Two
+  // parallel strokes can't be read that way: it's unambiguously a ribbon.
   function prMedalSvg(){
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
       'stroke-linecap="round" stroke-linejoin="round">' +
-      '<path d="M8.5 9L12 3L15.5 9"/>' +
-      '<circle cx="12" cy="14" r="6.5"/>' +
-      '<circle cx="12" cy="14" r="3"/>' +
+      '<line x1="9" y1="2" x2="9" y2="10"/>' +
+      '<line x1="15" y1="2" x2="15" y2="10"/>' +
+      '<circle cx="12" cy="15" r="6"/>' +
+      '<circle cx="12" cy="15" r="2.5"/>' +
       '</svg>';
   }
 
