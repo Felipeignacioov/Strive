@@ -374,10 +374,26 @@
   .progress-delta svg{width:11px;height:11px;}
   .delta-up{color:#4ADE80;}
   .delta-flat{color:var(--text-tertiary);}
-  /* Small, quiet trend indicator — a hint of evolution, not a chart */
-  .mini-bars{display:flex;align-items:flex-end;gap:3px;height:26px;flex-shrink:0;}
-  .mini-bar{width:4px;border-radius:4px;background:var(--track-empty);}
-  .mini-bar.last{background:var(--accent-bright);}
+  /* Small, honest evolution indicator — a real two-point trend (previous
+     record -> current record), not an invented multi-week sparkline. The
+     dim dot is "before", the bright green dot is "now": readable in under
+     2 seconds without adding any new metric. */
+  .progress-trend{width:40px;height:26px;flex-shrink:0;}
+  .progress-trend polyline{fill:none;stroke:var(--success);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .progress-trend circle{fill:var(--success);}
+  .progress-trend .trend-dot-from{fill:var(--track-empty);}
+  /* Shown instead of the trend line when there's no previous record yet to
+     compare against — never fabricates a "before" point that doesn't exist. */
+  .progress-trend-new{
+    width:28px;height:28px;border-radius:999px;flex-shrink:0;
+    background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
+  }
+  .progress-trend-new svg{width:14px;height:14px;color:var(--accent-bright);}
+  .progress-empty{
+    width:100%;
+    font-family:var(--font-body);font-size:13.5px;color:var(--text-tertiary);
+    text-align:center;padding:22px 10px;
+  }
 
   /* ---------- Activity row ---------- */
   .activity-row{
@@ -1283,38 +1299,7 @@
         <span class="section-title">Tu progreso</span>
         <span class="section-action" onclick="showTab('progreso')">Ver todo <i data-feather="chevron-right"></i></span>
       </div>
-      <div class="progress-grid">
-        <div class="card progress-card">
-          <div class="progress-name">Press banca</div>
-          <div class="progress-bottom">
-            <div>
-              <div class="progress-value"><span class="num">72,5</span><span class="unit">kg</span></div>
-              <div class="progress-delta delta-up"><i data-feather="trending-up"></i> +2,5 kg</div>
-            </div>
-            <div class="mini-bars">
-              <div class="mini-bar" style="height:12px"></div>
-              <div class="mini-bar" style="height:16px"></div>
-              <div class="mini-bar" style="height:20px"></div>
-              <div class="mini-bar last" style="height:26px"></div>
-            </div>
-          </div>
-        </div>
-        <div class="card progress-card">
-          <div class="progress-name">Sentadilla</div>
-          <div class="progress-bottom">
-            <div>
-              <div class="progress-value"><span class="num">85</span><span class="unit">kg</span></div>
-              <div class="progress-delta delta-up"><i data-feather="trending-up"></i> +5 kg</div>
-            </div>
-            <div class="mini-bars">
-              <div class="mini-bar" style="height:10px"></div>
-              <div class="mini-bar" style="height:14px"></div>
-              <div class="mini-bar" style="height:19px"></div>
-              <div class="mini-bar last" style="height:26px"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="progress-grid" id="homeProgressGrid"></div>
 
       <div style="height:32px"></div>
 
@@ -4159,6 +4144,7 @@
       entries,
     });
     renderPersonalRecords();
+    renderHomeProgress();
     renderTrainingCalendar();
 
     return {
@@ -4284,6 +4270,59 @@
     const container = document.getElementById('personalRecordsList');
     const records = getAllPersonalRecords().slice(0, PERSONAL_RECORDS_PREVIEW_LIMIT);
     container.innerHTML = records.map(buildPersonalRecordRowHtml).join('');
+    feather.replace();
+  }
+
+  // ---------- Home: "Tu progreso" ----------
+  // Mismo dato que "Récords personales" (getAllPersonalRecords, sin tocar),
+  // mismo criterio de orden (más reciente primero) — solo cambia el límite
+  // (2 en vez de 3) y la presentación, pensada para comunicar "estás
+  // mejorando" en 1-2 segundos: nombre, marca actual, delta real, y un
+  // indicador honesto de 2 puntos (anterior -> actual) en vez de una
+  // gráfica de 4 barras inventada. Nunca dibuja una tendencia con datos
+  // que no existen: sin récord anterior, muestra un badge de "primer
+  // registro" en su lugar.
+  const HOME_PROGRESS_LIMIT = 2;
+
+  function renderHomeProgress(){
+    const container = document.getElementById('homeProgressGrid');
+    const records = getAllPersonalRecords().slice(0, HOME_PROGRESS_LIMIT);
+
+    if(records.length === 0){
+      container.innerHTML = '<div class="progress-empty">Completa un entrenamiento para empezar a ver tu progreso aquí.</div>';
+      return;
+    }
+
+    container.innerHTML = records.map(r => {
+      const delta = r.previousRecord ? Math.round((r.currentRecord.weight - r.previousRecord.weight) * 100) / 100 : null;
+      const deltaHtml = delta
+        ? '<div class="progress-delta delta-up"><i data-feather="trending-up"></i> +' + formatWeightEs(delta) + ' kg</div>'
+        : '<div class="progress-delta delta-flat">Nuevo registro</div>';
+
+      // Real two-point trend (previous record -> current record) when there
+      // is something real to compare against; a plain "first record" badge
+      // otherwise — never a fabricated multi-point history.
+      const trendHtml = r.previousRecord
+        ? '<svg viewBox="0 0 40 26" class="progress-trend"><polyline points="3,20 37,6"/>' +
+            '<circle class="trend-dot-from" cx="3" cy="20" r="2.5"/>' +
+            '<circle cx="37" cy="6" r="2.5"/>' +
+          '</svg>'
+        : '<div class="progress-trend-new"><i data-feather="award"></i></div>';
+
+      return (
+        '<div class="card progress-card">' +
+          '<div class="progress-name">' + r.exerciseName + '</div>' +
+          '<div class="progress-bottom">' +
+            '<div>' +
+              '<div class="progress-value"><span class="num">' + formatWeightEs(r.currentRecord.weight) + '</span><span class="unit">kg</span></div>' +
+              deltaHtml +
+            '</div>' +
+            trendHtml +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
     feather.replace();
   }
 
@@ -4528,6 +4567,7 @@
 
     closeAddRecordScreen();
     renderPersonalRecords();
+    renderHomeProgress();
     showSuccessToast('Marca de ' + exerciseName + ' añadida');
   }
 
@@ -4663,6 +4703,7 @@
   renderProfileGoalLevel();
   renderRoutinesList();
   renderPersonalRecords();
+  renderHomeProgress();
   renderTrainingCalendar();
   feather.replace();
 </script>
