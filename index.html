@@ -408,6 +408,15 @@
   .v-divider{width:1px;height:34px;background:linear-gradient(180deg, transparent, var(--border-light), transparent);}
   .activity-icon-row{display:flex;align-items:center;gap:6px;}
   .activity-icon-row svg{width:15px;height:15px;color:var(--accent-bright);}
+  /* Compact 7-day strip for "Actividad" — same visual language as the
+     training-history calendar (day label + small dot underneath), scaled
+     down to fit inline in a single Home card row. */
+  .activity-week{display:flex;gap:7px;flex-shrink:0;}
+  .activity-day{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .activity-day-label{font-family:var(--font-body);font-weight:600;font-size:10px;color:var(--text-tertiary);}
+  .activity-day.today .activity-day-label{color:var(--text-primary);}
+  .activity-day-dot{width:7px;height:7px;border-radius:999px;background:var(--track-empty);}
+  .activity-day.trained .activity-day-dot{background:var(--accent-bright);}
 
   /* ---------- Rutinas ---------- */
   .rutinas-header{display:flex;align-items:flex-start;justify-content:space-between;padding-top:6px;}
@@ -1306,19 +1315,10 @@
       <div class="section-header"><span class="section-title">Actividad</span></div>
       <div class="activity-row">
         <div class="stat">
-          <div class="activity-icon-row"><i data-feather="calendar"></i><span class="v">4</span></div>
+          <div class="activity-icon-row"><i data-feather="calendar"></i><span class="v" id="activityDaysCount">0</span></div>
           <span class="l">días esta semana</span>
         </div>
-        <div class="v-divider"></div>
-        <div class="stat">
-          <div class="activity-icon-row"><i data-feather="zap"></i><span class="v">6</span></div>
-          <span class="l">días de racha</span>
-        </div>
-        <div class="v-divider"></div>
-        <div class="stat">
-          <div class="activity-icon-row"><i data-feather="layers"></i><span class="v">68</span></div>
-          <span class="l">series esta semana</span>
-        </div>
+        <div class="activity-week" id="activityWeekDots"></div>
       </div>
 
       <div style="height:24px"></div>
@@ -4170,6 +4170,7 @@
     });
     renderPersonalRecords();
     renderHomeProgress();
+    renderHomeActivity();
     renderTrainingCalendar();
 
     return {
@@ -4351,8 +4352,60 @@
     feather.replace();
   }
 
-  // "Ver todos" — mismo dato (getAllPersonalRecords), mismo componente de
-  // fila, sin límite. No es una lógica de PR nueva, solo una vista distinta
+  // ---------- Home: "Actividad" — días entrenados esta semana (real) ----------
+  // Semana de lunes a domingo: misma convención "Monday-first" que ya usa
+  // renderTrainingCalendar() ((getDay()+6)%7). Cuenta días DISTINTOS con al
+  // menos una sesión real — mismo filtro source==='workout' que ya usa
+  // getTrainedDatesInMonth() para el calendario (excluye legacy-seed y
+  // manual-import: "días entrenados" son sesiones reales, no marcas
+  // importadas). El Set elimina duplicados por construcción: dos
+  // entrenamientos el mismo día siguen contando como un solo día. Reutiliza
+  // isoDate()/todayIso() ya existentes — sin duplicar formateo de fechas.
+  function getCurrentWeekDates(){
+    const today = new Date();
+    const mondayOffset = (today.getDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - mondayOffset);
+    const dates = [];
+    for(let i = 0; i < 7; i++){
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      dates.push(isoDate(d.getFullYear(), d.getMonth(), d.getDate()));
+    }
+    return dates;
+  }
+
+  function getTrainedDatesThisWeek(weekDates){
+    const weekDateSet = new Set(weekDates);
+    const trained = new Set();
+    workoutLogs.forEach(log => {
+      if(log.source === 'workout' && weekDateSet.has(log.date)) trained.add(log.date);
+    });
+    return trained;
+  }
+
+  const HOME_ACTIVITY_DAY_LABELS = ['L','M','X','J','V','S','D']; // mismas iniciales que .cal-weekdays
+
+  function renderHomeActivity(){
+    const weekDates = getCurrentWeekDates();
+    const trainedSet = getTrainedDatesThisWeek(weekDates);
+    const todayStr = todayIso();
+
+    document.getElementById('activityDaysCount').textContent = trainedSet.size;
+
+    document.getElementById('activityWeekDots').innerHTML = weekDates.map((dateStr, i) => {
+      const classes = ['activity-day'];
+      if(trainedSet.has(dateStr)) classes.push('trained');
+      if(dateStr === todayStr) classes.push('today');
+      return (
+        '<div class="' + classes.join(' ') + '">' +
+          '<span class="activity-day-label">' + HOME_ACTIVITY_DAY_LABELS[i] + '</span>' +
+          '<div class="activity-day-dot"></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
   // sobre el mismo resultado.
   function renderAllPersonalRecords(){
     const container = document.getElementById('allRecordsList');
@@ -4729,6 +4782,7 @@
   renderRoutinesList();
   renderPersonalRecords();
   renderHomeProgress();
+  renderHomeActivity();
   renderTrainingCalendar();
   feather.replace();
 </script>
