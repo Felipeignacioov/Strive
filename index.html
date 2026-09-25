@@ -1291,6 +1291,54 @@
   .auth-confirmation{
     font-family:var(--font-body);font-size:14px;color:var(--text-secondary);line-height:1.6;
   }
+
+  /* ---------- Refinamiento de composición (login/crear cuenta/recuperar) ----------
+     Sustituye el uso de .flow-header/.flow-body/.flow-footer SOLO dentro del
+     auth gate. La causa del "espacio vacío" reportado era .flow-body{flex:1}
+     — pensado para listas largas — estirándose de más con un formulario de
+     2-3 campos y empujando el CTA al fondo. Aquí todo el contenido (título,
+     subtítulo, campos, CTA, cambio de pantalla) vive en un único bloque de
+     scroll natural, así que el CTA queda pegado al formulario, no aislado
+     abajo, y en pantallas cortas / con teclado abierto simplemente se puede
+     hacer scroll — sin depender de ninguna posición fija.
+     .flow-title/.flow-subtitle/.form-label/.form-input/.flow-primary-btn/
+     .close-btn no se tocan: se siguen reutilizando tal cual. */
+  .auth-topbar{
+    flex-shrink:0;min-height:40px;
+    display:flex;justify-content:flex-end;
+    padding:calc(env(safe-area-inset-top, 14px) + 10px) 20px 0 20px;
+  }
+  .auth-scroll{
+    flex:1;overflow-y:auto;scrollbar-width:none;
+    display:flex;flex-direction:column;
+    padding:8px 20px calc(env(safe-area-inset-bottom, 14px) + 24px) 20px;
+  }
+  .auth-scroll::-webkit-scrollbar{display:none;}
+  .auth-fields{margin-top:28px;}
+  .auth-cta{margin-top:28px;}
+  .auth-link{
+    background:none;border:none;padding:0;cursor:pointer;
+    font-family:var(--font-body);font-weight:600;font-size:13.5px;color:var(--text-secondary);
+    margin-top:10px;
+  }
+  .auth-switch{
+    text-align:center;margin-top:20px;
+    font-family:var(--font-body);font-weight:500;font-size:13.5px;color:var(--text-tertiary);
+  }
+  /* Estado de foco: rojo sutil, sin glow — y deliberadamente acotado con el
+     prefijo .auth-gate para que no afecte a .form-input en ninguna otra
+     pantalla de la app (rutinas, marcas, perfil, etc.), que quedan igual. */
+  .auth-gate .form-input:focus{
+    outline:none;
+    border-color:var(--accent);
+    background:var(--surface-pressed);
+  }
+
+  /* Splash: aparición suave ya existente (splashFadeIn) + una salida breve
+     y limpia antes de pasar a autenticación — nada de partículas ni
+     escalados, solo una transición de opacidad. */
+  #splashScreen{transition:opacity 0.3s ease;}
+  #splashScreen.splash-exit{opacity:0;}
 </style>
 </head>
 <body>
@@ -2099,70 +2147,68 @@
 
     <!-- ---------- Iniciar sesión ---------- -->
     <div class="auth-screen" id="loginScreen">
-      <div class="flow-header">
-        <div>
-          <div class="flow-title">Inicia sesión</div>
-          <div class="flow-subtitle">Entrena, registra y progresa con Strive.</div>
+      <div class="auth-topbar"></div>
+      <div class="auth-scroll">
+        <div class="flow-title">Inicia sesión</div>
+        <div class="flow-subtitle">Entrena, registra y progresa con Strive.</div>
+
+        <div class="auth-fields">
+          <div class="form-label">Email</div>
+          <input type="email" class="form-input" id="loginEmail" placeholder="tu@email.com" oninput="updateLoginButtonState()" />
+          <div class="form-label">Contraseña</div>
+          <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" oninput="updateLoginButtonState()" />
+          <div class="auth-error" id="loginError" style="display:none;"></div>
+          <button class="auth-link" onclick="showAuthScreen('forgotPassword')">¿Olvidaste tu contraseña?</button>
         </div>
-      </div>
-      <div class="flow-body">
-        <div class="form-label">Email</div>
-        <input type="email" class="form-input" id="loginEmail" placeholder="tu@email.com" oninput="updateLoginButtonState()" />
-        <div class="form-label">Contraseña</div>
-        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" oninput="updateLoginButtonState()" />
-        <div class="auth-error" id="loginError" style="display:none;"></div>
-        <button class="auth-link" onclick="showAuthScreen('forgotPassword')">¿Olvidaste tu contraseña?</button>
-      </div>
-      <div class="flow-footer">
-        <button class="flow-primary-btn" id="loginSubmitBtn" onclick="handleLogin()" disabled>Iniciar sesión</button>
+
+        <button class="flow-primary-btn auth-cta" id="loginSubmitBtn" onclick="handleLogin()" disabled>Iniciar sesión</button>
         <div class="auth-switch">¿No tienes cuenta? <span class="auth-link-inline" onclick="showAuthScreen('signup')">Crear cuenta</span></div>
       </div>
     </div>
 
     <!-- ---------- Crear cuenta ---------- -->
     <div class="auth-screen" id="signupScreen">
-      <div class="flow-header">
-        <div>
-          <div class="flow-title">Crea tu cuenta</div>
-          <div class="flow-subtitle">Solo lo esencial para empezar.</div>
-        </div>
+      <div class="auth-topbar">
         <button class="close-btn" onclick="showAuthScreen('login')"><i data-feather="x"></i></button>
       </div>
-      <div class="flow-body">
-        <div class="form-label">Nombre</div>
-        <input type="text" class="form-input" id="signupName" placeholder="Tu nombre" oninput="updateSignupButtonState()" />
-        <div class="form-label">Email</div>
-        <input type="email" class="form-input" id="signupEmail" placeholder="tu@email.com" oninput="updateSignupButtonState()" />
-        <div class="form-label">Contraseña</div>
-        <input type="password" class="form-input" id="signupPassword" placeholder="••••••••" oninput="updateSignupButtonState()" />
-        <div class="auth-error" id="signupError" style="display:none;"></div>
-      </div>
-      <div class="flow-footer">
-        <button class="flow-primary-btn" id="signupSubmitBtn" onclick="handleSignup()" disabled>Crear cuenta</button>
+      <div class="auth-scroll">
+        <div class="flow-title">Crea tu cuenta</div>
+        <div class="flow-subtitle">Solo lo esencial para empezar.</div>
+
+        <div class="auth-fields">
+          <div class="form-label">Nombre</div>
+          <input type="text" class="form-input" id="signupName" placeholder="Tu nombre" oninput="updateSignupButtonState()" />
+          <div class="form-label">Email</div>
+          <input type="email" class="form-input" id="signupEmail" placeholder="tu@email.com" oninput="updateSignupButtonState()" />
+          <div class="form-label">Contraseña</div>
+          <input type="password" class="form-input" id="signupPassword" placeholder="••••••••" oninput="updateSignupButtonState()" />
+          <div class="auth-error" id="signupError" style="display:none;"></div>
+        </div>
+
+        <button class="flow-primary-btn auth-cta" id="signupSubmitBtn" onclick="handleSignup()" disabled>Crear cuenta</button>
+        <div class="auth-switch">¿Ya tienes una cuenta? <span class="auth-link-inline" onclick="showAuthScreen('login')">Iniciar sesión</span></div>
       </div>
     </div>
 
     <!-- ---------- Recuperar contraseña ---------- -->
     <div class="auth-screen" id="forgotPasswordScreen">
-      <div class="flow-header">
-        <div>
-          <div class="flow-title">Recuperar contraseña</div>
-          <div class="flow-subtitle">Te enviaremos instrucciones a tu email.</div>
-        </div>
+      <div class="auth-topbar">
         <button class="close-btn" onclick="showAuthScreen('login')"><i data-feather="x"></i></button>
       </div>
-      <div class="flow-body">
-        <div id="forgotPasswordForm">
+      <div class="auth-scroll">
+        <div class="flow-title">Recuperar contraseña</div>
+        <div class="flow-subtitle">Te enviaremos instrucciones a tu email.</div>
+
+        <div class="auth-fields" id="forgotPasswordForm">
           <div class="form-label">Email</div>
           <input type="email" class="form-input" id="forgotEmail" placeholder="tu@email.com" oninput="updateForgotButtonState()" />
           <div class="auth-error" id="forgotError" style="display:none;"></div>
         </div>
-        <div id="forgotPasswordConfirmation" style="display:none;">
+        <div class="auth-fields" id="forgotPasswordConfirmation" style="display:none;">
           <div class="auth-confirmation">Si existe una cuenta asociada a ese email, recibirás instrucciones para restablecer tu contraseña en unos minutos.</div>
         </div>
-      </div>
-      <div class="flow-footer">
-        <button class="flow-primary-btn" id="forgotSubmitBtn" onclick="handleForgotPassword()" disabled>Enviar instrucciones</button>
+
+        <button class="flow-primary-btn auth-cta" id="forgotSubmitBtn" onclick="handleForgotPassword()" disabled>Enviar instrucciones</button>
       </div>
     </div>
 
@@ -2220,11 +2266,17 @@
   // Placeholder for a real session check (e.g. supabase.auth.getSession()).
   // Today it only reads the in-memory authState set during this page load.
   function checkAuthAndRoute(){
-    if(authState.isAuthenticated){
-      enterApp();
-    } else {
-      showAuthScreen('login');
-    }
+    // Fundido de salida sutil (solo opacidad, ver #splashScreen.splash-exit)
+    // antes de revelar la pantalla siguiente — transición limpia, sin
+    // escalados ni efectos adicionales.
+    document.getElementById('splashScreen').classList.add('splash-exit');
+    setTimeout(() => {
+      if(authState.isAuthenticated){
+        enterApp();
+      } else {
+        showAuthScreen('login');
+      }
+    }, 250);
   }
 
   function runSplash(){
