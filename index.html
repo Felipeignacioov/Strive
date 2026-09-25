@@ -1245,6 +1245,52 @@
     100%{box-shadow:0 0 0 14px rgba(224,45,72,0);}
   }
   .routine-card.just-created{animation:newRoutinePulse 1s ease-out 2;}
+
+  /* ================================================================
+     AUTH GATE — Splash + Iniciar sesión + Crear cuenta + Recuperar
+     contraseña. Sits above the entire app (highest z-index in use) so
+     Home never flashes before the auth check runs. Reuses the existing
+     .flow-header/.flow-body/.flow-footer/.form-label/.form-input/
+     .flow-primary-btn/.close-btn/.icon-btn system wherever possible —
+     no parallel design system introduced for this.
+     ================================================================ */
+  .auth-gate{
+    position:absolute;inset:0;z-index:200;
+    background:var(--bg);
+    display:flex;flex-direction:column;
+  }
+  .auth-gate.hidden{display:none;}
+  .auth-screen{display:none;flex-direction:column;height:100%;}
+  .auth-screen.active{display:flex;}
+
+  .splash-content{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  }
+  .splash-mark{width:7px;height:7px;border-radius:999px;background:var(--accent-bright);}
+  .splash-wordmark{
+    font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:3px;
+    color:var(--text-primary);
+    animation:splashFadeIn 0.5s ease;
+  }
+  @keyframes splashFadeIn{ from{opacity:0;} to{opacity:1;} }
+
+  .auth-error{
+    font-family:var(--font-body);font-weight:500;font-size:13px;color:var(--danger);
+    margin:-6px 0 14px 0;
+  }
+  .auth-link{
+    background:none;border:none;padding:0;cursor:pointer;
+    font-family:var(--font-body);font-weight:600;font-size:13.5px;color:var(--text-secondary);
+    margin-top:4px;
+  }
+  .auth-switch{
+    text-align:center;margin-top:16px;
+    font-family:var(--font-body);font-weight:500;font-size:13.5px;color:var(--text-tertiary);
+  }
+  .auth-link-inline{color:var(--accent-bright);font-weight:600;cursor:pointer;}
+  .auth-confirmation{
+    font-family:var(--font-body);font-size:14px;color:var(--text-secondary);line-height:1.6;
+  }
 </style>
 </head>
 <body>
@@ -2036,6 +2082,92 @@
     <div class="toast-text" id="successToastText">Rutina creada</div>
   </div>
 
+  <!-- ============ AUTH GATE: Splash + Iniciar sesión + Crear cuenta + Recuperar contraseña ============ -->
+  <!-- Covers the whole app until the (currently in-memory, later Supabase)
+       auth check resolves. Home renders normally underneath from the very
+       first paint — it's just visually covered, never actually skipped —
+       so there's nothing to "wait for" once this gate hides. -->
+  <div class="auth-gate" id="authGate">
+
+    <!-- ---------- Splash ---------- -->
+    <div class="auth-screen active" id="splashScreen">
+      <div class="splash-content">
+        <div class="splash-mark"></div>
+        <div class="splash-wordmark">STRIVE</div>
+      </div>
+    </div>
+
+    <!-- ---------- Iniciar sesión ---------- -->
+    <div class="auth-screen" id="loginScreen">
+      <div class="flow-header">
+        <div>
+          <div class="flow-title">Inicia sesión</div>
+          <div class="flow-subtitle">Entrena, registra y progresa con Strive.</div>
+        </div>
+      </div>
+      <div class="flow-body">
+        <div class="form-label">Email</div>
+        <input type="email" class="form-input" id="loginEmail" placeholder="tu@email.com" oninput="updateLoginButtonState()" />
+        <div class="form-label">Contraseña</div>
+        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" oninput="updateLoginButtonState()" />
+        <div class="auth-error" id="loginError" style="display:none;"></div>
+        <button class="auth-link" onclick="showAuthScreen('forgotPassword')">¿Olvidaste tu contraseña?</button>
+      </div>
+      <div class="flow-footer">
+        <button class="flow-primary-btn" id="loginSubmitBtn" onclick="handleLogin()" disabled>Iniciar sesión</button>
+        <div class="auth-switch">¿No tienes cuenta? <span class="auth-link-inline" onclick="showAuthScreen('signup')">Crear cuenta</span></div>
+      </div>
+    </div>
+
+    <!-- ---------- Crear cuenta ---------- -->
+    <div class="auth-screen" id="signupScreen">
+      <div class="flow-header">
+        <div>
+          <div class="flow-title">Crea tu cuenta</div>
+          <div class="flow-subtitle">Solo lo esencial para empezar.</div>
+        </div>
+        <button class="close-btn" onclick="showAuthScreen('login')"><i data-feather="x"></i></button>
+      </div>
+      <div class="flow-body">
+        <div class="form-label">Nombre</div>
+        <input type="text" class="form-input" id="signupName" placeholder="Tu nombre" oninput="updateSignupButtonState()" />
+        <div class="form-label">Email</div>
+        <input type="email" class="form-input" id="signupEmail" placeholder="tu@email.com" oninput="updateSignupButtonState()" />
+        <div class="form-label">Contraseña</div>
+        <input type="password" class="form-input" id="signupPassword" placeholder="••••••••" oninput="updateSignupButtonState()" />
+        <div class="auth-error" id="signupError" style="display:none;"></div>
+      </div>
+      <div class="flow-footer">
+        <button class="flow-primary-btn" id="signupSubmitBtn" onclick="handleSignup()" disabled>Crear cuenta</button>
+      </div>
+    </div>
+
+    <!-- ---------- Recuperar contraseña ---------- -->
+    <div class="auth-screen" id="forgotPasswordScreen">
+      <div class="flow-header">
+        <div>
+          <div class="flow-title">Recuperar contraseña</div>
+          <div class="flow-subtitle">Te enviaremos instrucciones a tu email.</div>
+        </div>
+        <button class="close-btn" onclick="showAuthScreen('login')"><i data-feather="x"></i></button>
+      </div>
+      <div class="flow-body">
+        <div id="forgotPasswordForm">
+          <div class="form-label">Email</div>
+          <input type="email" class="form-input" id="forgotEmail" placeholder="tu@email.com" oninput="updateForgotButtonState()" />
+          <div class="auth-error" id="forgotError" style="display:none;"></div>
+        </div>
+        <div id="forgotPasswordConfirmation" style="display:none;">
+          <div class="auth-confirmation">Si existe una cuenta asociada a ese email, recibirás instrucciones para restablecer tu contraseña en unos minutos.</div>
+        </div>
+      </div>
+      <div class="flow-footer">
+        <button class="flow-primary-btn" id="forgotSubmitBtn" onclick="handleForgotPassword()" disabled>Enviar instrucciones</button>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script>
@@ -2062,6 +2194,131 @@
     document.getElementById('homeAvatarInitial').textContent = initial;
     document.getElementById('profileAvatarInitial').textContent = initial;
     document.getElementById('profileNameDisplay').textContent = name;
+  }
+
+  // ================================================================
+  // AUTH — in-memory only for now, no Supabase yet. This is the single
+  // gate that decides whether Home is reachable. When Supabase is
+  // connected, only the bodies of checkAuthAndRoute()/handleLogin()/
+  // handleSignup()/handleForgotPassword() need to change — the screens,
+  // the routing shape, and enterApp() stay the same.
+  // ================================================================
+  let authState = {
+    isAuthenticated: false,
+    onboardingCompleted: false, // reserved for the next stage (onboarding) — not used yet
+    user: null, // { name, email }
+  };
+
+  // Same simple show/hide convention as showTab() below — one active
+  // .auth-screen at a time within #authGate.
+  function showAuthScreen(name){
+    document.querySelectorAll('.auth-screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(name + 'Screen').classList.add('active');
+    feather.replace();
+  }
+
+  // Placeholder for a real session check (e.g. supabase.auth.getSession()).
+  // Today it only reads the in-memory authState set during this page load.
+  function checkAuthAndRoute(){
+    if(authState.isAuthenticated){
+      enterApp();
+    } else {
+      showAuthScreen('login');
+    }
+  }
+
+  function runSplash(){
+    // Brief, fixed pause — no real async work yet since there's no backend
+    // session to await. Once Supabase is connected this is where the
+    // actual session check happens before routing.
+    setTimeout(checkAuthAndRoute, 900);
+  }
+
+  function enterApp(){
+    document.getElementById('authGate').classList.add('hidden');
+    // NOTE: once onboarding exists (next stage), this is where we'll check
+    // authState.onboardingCompleted and route to onboarding instead of
+    // revealing Home directly.
+  }
+
+  function isValidEmail(value){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }
+
+  function updateLoginButtonState(){
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    document.getElementById('loginSubmitBtn').disabled = !(isValidEmail(email) && password.length > 0);
+  }
+
+  function handleLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    if(!isValidEmail(email) || !password){
+      errorEl.textContent = 'Introduce un email válido y tu contraseña.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // TODO(supabase): sustituir por supabase.auth.signInWithPassword({ email, password })
+    authState.isAuthenticated = true;
+    authState.user = { email };
+    enterApp();
+  }
+
+  function updateSignupButtonState(){
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    document.getElementById('signupSubmitBtn').disabled = !(name.length >= 2 && isValidEmail(email) && password.length > 0);
+  }
+
+  function handleSignup(){
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const errorEl = document.getElementById('signupError');
+    if(name.length < 2 || !isValidEmail(email) || !password){
+      errorEl.textContent = 'Completa tu nombre, un email válido y una contraseña.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // TODO(supabase): sustituir por supabase.auth.signUp({ email, password })
+    // y guardar el nombre en el perfil real una vez exista backend.
+    authState.isAuthenticated = true;
+    authState.user = { name, email };
+
+    // Reutiliza el perfil y el render ya existentes — no se duplica lógica
+    // de identidad solo porque ahora viene de "crear cuenta".
+    userProfile.name = name;
+    renderProfileIdentity();
+
+    enterApp();
+  }
+
+  function updateForgotButtonState(){
+    const email = document.getElementById('forgotEmail').value;
+    document.getElementById('forgotSubmitBtn').disabled = !isValidEmail(email);
+  }
+
+  function handleForgotPassword(){
+    const email = document.getElementById('forgotEmail').value.trim();
+    const errorEl = document.getElementById('forgotError');
+    if(!isValidEmail(email)){
+      errorEl.textContent = 'Introduce un email válido.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // TODO(supabase): sustituir por supabase.auth.resetPasswordForEmail(email)
+    document.getElementById('forgotPasswordForm').style.display = 'none';
+    document.getElementById('forgotSubmitBtn').style.display = 'none';
+    document.getElementById('forgotPasswordConfirmation').style.display = 'block';
   }
 
   // ---------- Tab switching ----------
@@ -4785,6 +5042,7 @@
   renderHomeActivity();
   renderTrainingCalendar();
   feather.replace();
+  runSplash();
 </script>
 </body>
 </html>
