@@ -1339,6 +1339,23 @@
      escalados, solo una transición de opacidad. */
   #splashScreen{transition:opacity 0.3s ease;}
   #splashScreen.splash-exit{opacity:0;}
+
+  /* ---------- Onboarding (4 pasos) ----------
+     Reutiliza casi todo lo ya existente: .auth-gate como contenedor
+     (mismo fondo, mismo tratamiento), .dots-row/.dot como indicador de
+     progreso (el mismo componente que ya usa el entrenamiento activo para
+     "ejercicio X de Y"), .goal-option/.goal-icon/.goal-label/.goal-radio
+     como tarjeta de opción única (el mismo componente que ya usa
+     "Objetivo y nivel"), y .auth-scroll/.flow-title/.flow-primary-btn del
+     refinamiento de auth. Solo hace falta una barra superior propia
+     (back + "X / 4") porque .auth-topbar está pensada para un único botón
+     alineado a la derecha, no para dos elementos repartidos. */
+  .onboarding-topbar{
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:calc(env(safe-area-inset-top, 14px) + 10px) 20px 0 20px;
+  }
+  .onboarding-step-label{font-family:var(--font-body);font-weight:600;font-size:13px;color:var(--text-tertiary);}
 </style>
 </head>
 <body>
@@ -2214,6 +2231,27 @@
 
   </div>
 
+  <!-- ============ ONBOARDING: 4 pasos ============ -->
+  <!-- Un único contenedor dinámico (no 4 pantallas estáticas) — cada paso
+       se re-renderiza desde ONBOARDING_STEPS + onboardingProfile. Reutiliza
+       .auth-gate como fondo/estructura, .dots-row/.dot como indicador de
+       progreso (mismo componente que ya usa el entrenamiento activo) y
+       .goal-option/.goal-icon/.goal-label/.goal-radio como tarjeta de
+       opción única (mismo componente que ya usa "Objetivo y nivel"). -->
+  <div class="auth-gate hidden" id="onboardingGate">
+    <div class="onboarding-topbar">
+      <button class="icon-btn" id="onboardingBackBtn" onclick="onboardingGoBack()"><i data-feather="chevron-left"></i></button>
+      <span class="onboarding-step-label" id="onboardingProgressLabel">1 / 4</span>
+    </div>
+    <div class="auth-scroll">
+      <div class="dots-row" id="onboardingDots"></div>
+      <div class="flow-title" id="onboardingQuestion">¿Cuál es tu objetivo principal?</div>
+      <div class="auth-fields" id="onboardingOptions"></div>
+      <div class="auth-error" id="onboardingError" style="display:none;">Selecciona una opción para continuar.</div>
+      <button class="flow-primary-btn auth-cta" onclick="onboardingContinue()">Continuar</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -2288,9 +2326,144 @@
 
   function enterApp(){
     document.getElementById('authGate').classList.add('hidden');
-    // NOTE: once onboarding exists (next stage), this is where we'll check
-    // authState.onboardingCompleted and route to onboarding instead of
-    // revealing Home directly.
+    if(!authState.onboardingCompleted){
+      startOnboarding();
+    }
+    // Si onboardingCompleted ya es true, Home queda revelado tal cual —
+    // no hace falta nada más aquí.
+  }
+
+  // ================================================================
+  // ONBOARDING — 4 preguntas, un único contenedor dinámico. Guarda
+  // valores estructurados (no el texto visible) en onboardingProfile,
+  // pensado para pertenecer más adelante a un perfil de usuario real:
+  //   user.profile = { goal, experience, trainingDays, trainingLocation, onboarding_completed }
+  // Por ahora vive solo en memoria — igual que authState, sin Supabase.
+  // No se integra todavía con userPreferences/GOALS (el sistema que ya usa
+  // "Crear rutina con Strive"): son conceptos separados a propósito hasta
+  // que se decida esa conexión en un paso posterior.
+  // ================================================================
+  const ONBOARDING_STEPS = [
+    {
+      key: 'goal',
+      question: '¿Cuál es tu objetivo principal?',
+      options: [
+        { value: 'muscle_gain', label: 'Ganar músculo', icon: 'trending-up' },
+        { value: 'strength',    label: 'Ganar fuerza',  icon: 'zap' },
+        { value: 'fat_loss',    label: 'Perder grasa',  icon: 'trending-down' },
+        { value: 'maintenance', label: 'Mantenerme',    icon: 'heart' },
+      ],
+    },
+    {
+      key: 'experience',
+      question: '¿Cuál es tu experiencia entrenando?',
+      options: [
+        { value: 'beginner',     label: 'Estoy empezando',            icon: 'sunrise' },
+        { value: 'intermediate', label: 'Tengo algo de experiencia',  icon: 'activity' },
+        { value: 'advanced',     label: 'Llevo años entrenando',      icon: 'award' },
+      ],
+    },
+    {
+      key: 'trainingDays',
+      question: '¿Cuántos días entrenas normalmente?',
+      options: [
+        { value: '2',      label: '2 días',   icon: 'calendar' },
+        { value: '3',      label: '3 días',   icon: 'calendar' },
+        { value: '4',      label: '4 días',   icon: 'calendar' },
+        { value: '5',      label: '5 días',   icon: 'calendar' },
+        { value: '6_plus', label: '6+ días',  icon: 'calendar' },
+      ],
+    },
+    {
+      key: 'trainingLocation',
+      question: '¿Dónde entrenas normalmente?',
+      options: [
+        { value: 'gym',  label: 'Gimnasio',        icon: 'activity' },
+        { value: 'home', label: 'En casa',          icon: 'home' },
+        { value: 'both', label: 'Gimnasio y casa',  icon: 'layers' },
+      ],
+    },
+  ];
+
+  let onboardingProfile = { goal: null, experience: null, trainingDays: null, trainingLocation: null };
+  let onboardingStepIndex = 0;
+
+  function startOnboarding(){
+    onboardingStepIndex = 0;
+    onboardingProfile = { goal: null, experience: null, trainingDays: null, trainingLocation: null };
+    renderOnboardingStep();
+    document.getElementById('onboardingGate').classList.remove('hidden');
+  }
+
+  function renderOnboardingStep(){
+    const step = ONBOARDING_STEPS[onboardingStepIndex];
+    const total = ONBOARDING_STEPS.length;
+
+    document.getElementById('onboardingProgressLabel').textContent = (onboardingStepIndex + 1) + ' / ' + total;
+    // visibility, not display — reserva el espacio para que el label de
+    // progreso nunca cambie de posición entre pasos.
+    document.getElementById('onboardingBackBtn').style.visibility = onboardingStepIndex === 0 ? 'hidden' : 'visible';
+
+    document.getElementById('onboardingDots').innerHTML = ONBOARDING_STEPS.map((s, i) => {
+      const cls = i < onboardingStepIndex ? ' done' : (i === onboardingStepIndex ? ' active' : '');
+      return '<div class="dot' + cls + '"></div>';
+    }).join('');
+
+    document.getElementById('onboardingQuestion').textContent = step.question;
+
+    // El estado ya seleccionado (si el usuario vuelve atrás) se refleja
+    // directamente desde onboardingProfile — no hay una copia aparte que
+    // pueda desincronizarse.
+    const currentValue = onboardingProfile[step.key];
+    document.getElementById('onboardingOptions').innerHTML = step.options.map(opt => {
+      const isSelected = currentValue === opt.value;
+      return (
+        '<div class="goal-option' + (isSelected ? ' selected' : '') + '" onclick="selectOnboardingOption(\'' + opt.value + '\')">' +
+          '<div class="goal-icon"><i data-feather="' + opt.icon + '"></i></div>' +
+          '<div class="goal-label">' + opt.label + '</div>' +
+          '<div class="goal-radio"></div>' +
+        '</div>'
+      );
+    }).join('');
+
+    document.getElementById('onboardingError').style.display = 'none';
+    feather.replace();
+  }
+
+  function selectOnboardingOption(value){
+    const step = ONBOARDING_STEPS[onboardingStepIndex];
+    onboardingProfile[step.key] = value;
+    renderOnboardingStep();
+  }
+
+  function onboardingContinue(){
+    const step = ONBOARDING_STEPS[onboardingStepIndex];
+    if(!onboardingProfile[step.key]){
+      document.getElementById('onboardingError').style.display = 'block';
+      return;
+    }
+    if(onboardingStepIndex < ONBOARDING_STEPS.length - 1){
+      onboardingStepIndex++;
+      renderOnboardingStep();
+    } else {
+      completeOnboarding();
+    }
+  }
+
+  function onboardingGoBack(){
+    if(onboardingStepIndex === 0) return;
+    onboardingStepIndex--;
+    renderOnboardingStep();
+  }
+
+  function completeOnboarding(){
+    // TODO(supabase): persistir onboardingProfile en el perfil real del
+    // usuario (user.profile.goal/experience/training_days/training_location)
+    // y escribir onboarding_completed=true en el backend.
+    authState.onboardingCompleted = true;
+    document.getElementById('onboardingGate').classList.add('hidden');
+    // Home ya está renderizado debajo desde el arranque — no hace falta
+    // ninguna pantalla intermedia ni de "¡Felicidades!".
   }
 
   function isValidEmail(value){
